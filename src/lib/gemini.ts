@@ -1,7 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 
-const GEMINI_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+const GEMINI_BASE =
+  "https://generativelanguage.googleapis.com/v1beta/models";
+// Try fastest first, fall back to lighter / older variants if overloaded.
+const MODEL_FALLBACKS = [
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
+  "gemini-2.0-flash",
+];
 
 const SYSTEM_PRIMER = `You are "The GC Copilot" — a senior SEO strategist for a General Contractor & Painting business owner building on Framer.
 
@@ -27,29 +33,47 @@ async function callGemini(prompt: string, useGrounding: boolean) {
     body.tools = [{ google_search: {} }];
   }
 
-  const res = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(
-      `Gemini error [${res.status}]: ${JSON.stringify(data).slice(0, 500)}`,
-    );
+  let lastErr = "";
+  for (const model of MODEL_FALLBACKS) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const url = `${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        return extractResult(data);
+      }
+      lastErr = `[${model} ${res.status}] ${JSON.stringify(data).slice(0, 300)}`;
+      // Retry only on overload / rate limits
+      if (![429, 500, 502, 503, 504].includes(res.status)) break;
+      if (attempt === 0) await new Promise((r) => setTimeout(r, 1500));
+    }
   }
+  throw new Error(`Gemini upstream unavailable. ${lastErr}`);
+}
+
+function extractResult(data: unknown) {
+  const d = data as {
+    candidates?: Array<{
+      content?: { parts?: Array<{ text?: string }> };
+      groundingMetadata?: {
+        groundingChunks?: Array<{ web?: { title?: string; uri?: string } }>;
+      };
+    }>;
+  };
   const text =
-    data?.candidates?.[0]?.content?.parts
-      ?.map((p: { text?: string }) => p.text || "")
-      .join("") ?? "";
-  const groundingMeta = data?.candidates?.[0]?.groundingMetadata;
+    d?.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") ?? "";
+  const groundingMeta = d?.candidates?.[0]?.groundingMetadata;
   const sources: { title: string; uri: string }[] =
     groundingMeta?.groundingChunks
-      ?.map((c: { web?: { title?: string; uri?: string } }) => ({
+      ?.map((c) => ({
         title: c.web?.title || "Source",
         uri: c.web?.uri || "",
       }))
-      .filter((s: { uri: string }) => s.uri) ?? [];
+      .filter((s) => s.uri) ?? [];
   return { text, sources };
 }
 
