@@ -1,17 +1,5 @@
 [build]
   command = "bun run build"
-  publish = "dist"
 
 [build.environment]
   NODE_VERSION = "20"
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-
-[dev]
-  command = "bun run dev"
-  targetPort = 3000
-  port = 8888
-  publish = "dist"
