@@ -1,7 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 
-const GEMINI_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+const GEMINI_BASE =
+  "https://generativelanguage.googleapis.com/v1beta/models";
+// Try fastest first, fall back to lighter / older variants if overloaded.
+const MODEL_FALLBACKS = [
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
+  "gemini-2.0-flash",
+];
 
 const SYSTEM_PRIMER = `You are "The GC Copilot" — a senior SEO strategist for a General Contractor & Painting business owner building on Framer.
 
