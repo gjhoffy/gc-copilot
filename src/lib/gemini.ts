@@ -75,19 +75,6 @@ function extractResult(data: unknown) {
       }))
       .filter((s) => s.uri) ?? [];
   return { text, sources };
-  const text =
-    data?.candidates?.[0]?.content?.parts
-      ?.map((p: { text?: string }) => p.text || "")
-      .join("") ?? "";
-  const groundingMeta = data?.candidates?.[0]?.groundingMetadata;
-  const sources: { title: string; uri: string }[] =
-    groundingMeta?.groundingChunks
-      ?.map((c: { web?: { title?: string; uri?: string } }) => ({
-        title: c.web?.title || "Source",
-        uri: c.web?.uri || "",
-      }))
-      .filter((s: { uri: string }) => s.uri) ?? [];
-  return { text, sources };
 }
 
 export const runCopilot = createServerFn({ method: "POST" })
