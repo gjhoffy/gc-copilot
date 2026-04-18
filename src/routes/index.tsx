@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { MissionControl } from "src/components/MissionControl.tsx";
-import { GlobeBackground }  from "src/components/GlobeBackground.tsx";
+import GlobeBackground from "src/components/GlobeBackground.tsx";
 
 export const Route = createFileRoute("/")({
   head: () => ({
