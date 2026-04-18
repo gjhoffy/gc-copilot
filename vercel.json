@@ -2,7 +2,10 @@
   "buildCommand": "bun run build",
   "outputDirectory": "dist",
   "functions": {
-    "dist/server/*.js": {}
+    "dist/server/*.js": {
+      "memory": 3008,
+      "maxDuration": 60
+    }
   },
   "routes": [
     {
