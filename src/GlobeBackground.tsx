@@ -10,7 +10,7 @@ export default function GlobeBackground() {
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.z = 2.8;
+    camera.position.z = 1.6;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -23,10 +23,10 @@ export default function GlobeBackground() {
 
     const sphereGeo = new THREE.SphereGeometry(radius, 32, 32);
     const wireframeMat = new THREE.MeshBasicMaterial({
-      color: 0xff4500,
+      color: #7FFF00,
       wireframe: true,
       transparent: true,
-      opacity: 0.08,
+      opacity: 0.09,
     });
     globeGroup.add(new THREE.Mesh(sphereGeo, wireframeMat));
 
@@ -62,8 +62,8 @@ export default function GlobeBackground() {
       globeGroup.add(dot);
     }
 
-    globeGroup.rotation.x = 0.2;
-    globeGroup.rotation.z = -0.15;
+    globeGroup.rotation.x = 0.1;
+    globeGroup.rotation.z = -0.18;
     scene.add(globeGroup);
 
     const onResize = () => {
@@ -96,9 +96,9 @@ export default function GlobeBackground() {
         position: "fixed",
         top: 0,
         left: 0,
-        width: "100vw",
-        height: "100vh",
-        zIndex: 0,
+        width: "300vw",
+        height: "300vh",
+        zIndex: -1,
         pointerEvents: "none",
         opacity: 0.85,
       }}
