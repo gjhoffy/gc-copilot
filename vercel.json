@@ -1,4 +1,9 @@
 {
   "buildCommand": "bun run build",
-  "outputDirectory": "dist"
+  "outputDirectory": "dist/client",
+  "functions": {
+    "dist/server/*.js": {
+      "runtime": "nodejs@20.x"
+    }
+  }
 }
