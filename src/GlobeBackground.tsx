@@ -21,7 +21,7 @@ export default function GlobeBackground() {
     const radius = 1;
     const globeGroup = new THREE.Group();
 
-    const sphereGeo = new THREE.SphereGeometry(radius, 32, 32);
+    const sphereGeo = new THREE.SphereGeometry(radius, 92, 92);
     const wireframeMat = new THREE.MeshBasicMaterial({
       color: #7FFF00,
       wireframe: true,
@@ -30,7 +30,7 @@ export default function GlobeBackground() {
     });
     globeGroup.add(new THREE.Mesh(sphereGeo, wireframeMat));
 
-    const lineMat = new THREE.LineBasicMaterial({ color: 0xff4500, transparent: true, opacity: 0.18 });
+    const lineMat = new THREE.LineBasicMaterial({ color: #7FFF00, transparent: true, opacity: 0.18 });
 
     for (let lat = -80; lat <= 80; lat += 20) {
       const phi = (lat * Math.PI) / 180;
