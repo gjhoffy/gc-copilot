@@ -163,7 +163,7 @@ export default function MissionControl() {
           <div className="flex min-w-0 items-center gap-3">
             <div className="hazard-stripes h-9 w-9 shrink-0" />
             <div className="min-w-0">
-              <p className="font-display text-base leading-none md:text-lg truncate">
+              <p className="truncate font-display text-base leading-none md:text-lg">
                 CONSTRUCTBUILT // GIGA BRAIN
               </p>
               <p className="mt-1 font-mono text-[10px] tracking-widest text-muted-foreground">
@@ -179,7 +179,7 @@ export default function MissionControl() {
       </header>
 
       <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-6 px-4 py-6 md:px-6 lg:grid-cols-[1fr_320px]">
-        <main className="min-w-0 space-y-5">
+        <main className="min-w-0 flex flex-col gap-5">
           <section className="border-2 border-border bg-card">
             <div className="flex items-center justify-between border-b-2 border-border px-4 py-2">
               <div className="flex items-center gap-2 font-mono text-[10px] tracking-widest text-primary">
@@ -421,7 +421,7 @@ export default function MissionControl() {
                         </div>
                         <div className="mt-1 text-sm leading-tight">{s.title}</div>
                         <div className="mt-2 truncate font-mono text-[10px] tracking-widest text-muted-foreground">
-                          {s.uri.replace(/^https?:\/\//, "")}
+                          {safeHost(s.uri)}
                         </div>
                       </a>
                     </li>
@@ -430,22 +430,49 @@ export default function MissionControl() {
               )}
             </div>
           </div>
+
+          <div className="mt-4 border-2 border-dashed border-border bg-card p-3">
+            <p className="mb-2 font-mono text-[10px] tracking-widest text-primary">
+              // LOCALE LOCK
+            </p>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Doylestown <span className="text-foreground">18901 / 18902</span> · New Hope{" "}
+              <span className="text-foreground">18938</span> · Newtown{" "}
+              <span className="text-foreground">18940</span> · Warrington{" "}
+              <span className="text-foreground">18976</span> · Buckingham · Furlong · Bucks County, PA.
+            </p>
+          </div>
         </aside>
       </div>
+
+      <footer className="mt-6 border-t-2 border-border">
+        <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-4 px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+          <span>© 2026 CONSTRUCTBUILT // GIGA BRAIN</span>
+          <span>SPEC: TRUST-VELOCITY · AIO · GROUNDED</span>
+          <span className="text-primary">SYSTEM ONLINE ▣</span>
+        </div>
+      </footer>
     </div>
   );
 }
 
+function safeHost(uri: string) {
+  try {
+    return new URL(uri).host.replace(/^www\./, "");
+  } catch {
+    return uri.slice(0, 40);
+  }
+}
+
 function EmptyState() {
   return (
-    <div className="flex min-h-[320px] flex-col items-start justify-center">
-      <p className="font-mono text-[10px] tracking-widest text-primary">READY FOR INPUT</p>
-      <h1 className="mt-3 max-w-3xl text-3xl leading-[0.95] md:text-5xl">
-        Run market recon. Write pages. Fill Framer CMS. Stay locked to Bucks County.
-      </h1>
-      <p className="mt-4 max-w-xl text-sm text-muted-foreground md:text-base">
-        Use quick actions for speed or write a custom prompt. Outputs stay extractive, local,
-        and structured for 2026 AI search.
+    <div className="py-10 text-center">
+      <div className="mx-auto mb-6 h-16 w-16 hazard-stripes" />
+      <h2 className="mb-2 font-display text-2xl md:text-3xl">BRAIN STANDING BY</h2>
+      <p className="mx-auto max-w-md text-sm text-muted-foreground">
+        Type a prompt or hit a quick action. The brain auto-detects intent — blog, market
+        recon, landing page, audit, or Framer CMS — and grounds every answer in live 2026
+        Bucks County data.
       </p>
     </div>
   );
@@ -453,12 +480,23 @@ function EmptyState() {
 
 function ThinkingState({ prompt }: { prompt: string }) {
   return (
-    <div className="flex min-h-[280px] flex-col justify-center gap-4">
-      <p className="font-mono text-[10px] tracking-widest text-primary">PROCESSING</p>
-      <div className="h-4 w-56 animate-pulse bg-muted" />
-      <div className="h-4 w-80 max-w-full animate-pulse bg-muted" />
-      <div className="h-4 w-72 max-w-full animate-pulse bg-muted" />
-      <p className="font-mono text-xs text-muted-foreground">{prompt}</p>
+    <div className="space-y-4">
+      <div className="flex items-center gap-3 font-mono text-xs tracking-widest text-primary">
+        <span className="h-2 w-2 animate-pulse bg-primary" />
+        BRAIN ENGAGED · GROUNDING LIVE WEB · 2026 BUCKS COUNTY CONTEXT
+      </div>
+      <div className="border-2 border-dashed border-border p-3 font-mono text-xs text-muted-foreground">
+        ▸ {prompt}
+      </div>
+      <ul className="space-y-2">
+        {[90, 80, 70, 95, 60].map((w, i) => (
+          <li
+            key={i}
+            className="h-3 animate-pulse bg-border"
+            style={{ width: `${w}%` }}
+          />
+        ))}
+      </ul>
     </div>
   );
 }
