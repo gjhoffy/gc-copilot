@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { runBrain, getModeLabel, type BrainMode } from "@/lib/brain";
+import { SettingsDialog, loadSettings, applySettings, type AppSettings } from "@/components/Settings";
 
 type Source = { title: string; uri: string };
 type Run = {
@@ -67,7 +68,14 @@ export default function MissionControl() {
   const [showFieldEditor, setShowFieldEditor] = useState(false);
   const [runs, setRuns] = useState<Run[]>([]);
   const [active, setActive] = useState<string | null>(null);
+  const [settings, setSettings] = useState<AppSettings>(loadSettings());
+  const [showSettings, setShowSettings] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Apply settings on mount
+  useEffect(() => {
+    applySettings(settings);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem("gigabrain.framerFields", framerFields);
@@ -75,6 +83,7 @@ export default function MissionControl() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (!settings.enableKeyboardShortcuts) return;
       if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
         e.preventDefault();
         void submit();
@@ -86,7 +95,7 @@ export default function MissionControl() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [prompt, forcedMode, framerFields]);
+  }, [prompt, forcedMode, framerFields, settings.enableKeyboardShortcuts]);
 
   const activeRun = useMemo(
     () => runs.find((r) => r.id === active) ?? runs[0],
@@ -169,6 +178,14 @@ export default function MissionControl() {
           <div className="hidden items-center gap-3 font-mono text-[10px] md:flex">
             <span className="h-2 w-2 animate-pulse bg-primary" />
             <span className="text-muted-foreground">GEMINI 2.5 / GROUNDED</span>
+            <span className="mx-2 h-1 w-1 bg-border" />
+            <button
+              onClick={() => setShowSettings(true)}
+              className="hover:text-primary transition-colors"
+              title="Settings"
+            >
+              ⚙ SETTINGS
+            </button>
           </div>
         </div>
       </header>
@@ -242,7 +259,7 @@ export default function MissionControl() {
                 </button>
               </div>
               <p className="mt-2 font-mono text-[10px] tracking-widest text-muted-foreground">
-                ⌘/CTRL + ENTER · MODE: {forcedMode === "auto" ? "AUTO-DETECT" : forcedMode.toUpperCase()}
+                {settings.enableKeyboardShortcuts && "⌘/CTRL + ENTER · "}MODE: {forcedMode === "auto" ? "AUTO-DETECT" : forcedMode.toUpperCase()}
                 {isBlogOrFramer && !framerFields ? (
                   <>
                     {" · "}
@@ -304,7 +321,7 @@ export default function MissionControl() {
                   </span>
                 ) : null}
               </div>
-              {activeRun?.ms ? (
+              {settings.showExecutionTime && activeRun?.ms ? (
                 <span className="font-mono text-[10px] tracking-widest text-muted-foreground">
                   {(activeRun.ms / 1000).toFixed(1)}s
                 </span>
@@ -376,9 +393,11 @@ export default function MissionControl() {
                 />
                 LIVE SOURCES
               </div>
-              <span className="font-mono text-[10px] tracking-widest text-muted-foreground">
-                {activeRun?.sources.length ?? 0} cited
-              </span>
+              {settings.showSourcesCount && (
+                <span className="font-mono text-[10px] tracking-widest text-muted-foreground">
+                  {activeRun?.sources.length ?? 0} cited
+                </span>
+              )}
             </div>
             <div className="max-h-[70vh] overflow-y-auto p-3">
               {!activeRun ? (
@@ -442,11 +461,13 @@ export default function MissionControl() {
 
       <footer className="mt-6 border-t-2 border-border">
         <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-4 px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-          <span>© 2026 CONSTRUCTBUILT // GIGA BRAIN</span>
+          <span>© 2026 Hoffman Paint & Home Design // GIGA BRAIN</span>
           <span>SPEC: TRUST-VELOCITY · AIO · GROUNDED</span>
           <span className="text-primary">SYSTEM ONLINE ▣</span>
         </div>
       </footer>
+
+      <SettingsDialog open={showSettings} onOpenChange={setShowSettings} />
     </div>
   );
 }

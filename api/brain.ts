@@ -1,9 +1,68 @@
 // Vercel Node serverless function: POST /api/brain
 // Holds Gemini + Tavily logic. Reads GEMINI_API_KEY and TAVILY_API_KEY from env.
 
+import { z } from "zod";
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
+
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const MODEL_FALLBACKS = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"];
 const TAVILY_BASE = "https://api.tavily.com/search";
+
+// ============ SECURITY: CORS WHITELIST ============
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || "https://localhost:3000").split(",").filter(Boolean);
+
+function getCorsHeaders(origin?: string | null) {
+  const isAllowed = origin && ALLOWED_ORIGINS.some(allowed =>
+    new RegExp("^" + allowed.replace(/\*/g, ".*") + "$").test(origin)
+  );
+  return {
+    "Access-Control-Allow-Origin": isAllowed ? origin : "",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Credentials": "true",
+  };
+}
+
+// ============ SECURITY: HEADERS ============
+function getSecurityHeaders() {
+  return {
+    "Content-Security-Policy": "default-src 'none'",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "X-XSS-Protection": "1; mode=block",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+  };
+}
+
+// ============ SECURITY: INPUT VALIDATION ============
+const RequestBodySchema = z.object({
+  prompt: z.string()
+    .min(1, "Prompt cannot be empty")
+    .max(3000, "Prompt exceeds maximum length of 3000 characters")
+    .trim(),
+  forcedMode: z.enum(["market", "blog", "page", "audit", "framer", "chat"]).optional(),
+  framerFields: z.string()
+    .max(5000, "Framer fields exceed maximum length")
+    .optional(),
+});
+
+type RequestBody = z.infer<typeof RequestBodySchema>;
+
+// ============ SECURITY: RATE LIMITING ============
+const redis = process.env.UPSTASH_REDIS_REST_URL 
+  ? Redis.fromEnv() 
+  : null;
+
+const ratelimit = redis ? new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(10, "1 h"), // 10 requests per hour per IP
+}) : null;
+
+if (!redis && process.env.NODE_ENV === "production") {
+  console.warn("⚠️ WARNING: Rate limiting disabled (Upstash Redis not configured)");
+}
 
 const LOCALE = `Primary service area: Doylestown, PA (ZIPs 18901, 18902).
 Secondary: Buckingham, New Hope (18938), Newtown (18940), Warrington (18976), Furlong.
@@ -105,46 +164,88 @@ async function tavilySearch(query: string, apiKey: string) {
 }
 
 export default async function handler(req: Request): Promise<Response> {
-  const cors = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+  const origin = req.headers.get("Origin");
+  const cors = getCorsHeaders(origin);
+  const securityHeaders = getSecurityHeaders();
+  const headers = { 
+    ...cors, 
+    ...securityHeaders,
+    "Content-Type": "application/json" 
   };
 
+  // Handle preflight requests
   if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: cors });
+    return new Response(null, { status: 204, headers });
   }
+
+  // Only allow POST
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
-      headers: { "Content-Type": "application/json", ...cors },
+      headers,
     });
   }
 
   try {
-    const body = (await req.json()) as {
-      prompt?: string;
-      forcedMode?: string;
-      framerFields?: string;
-    };
+    // ============ SECURITY: RATE LIMITING ============
+    if (ratelimit) {
+      const ip = req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "unknown";
+      try {
+        const { success, reset } = await ratelimit.limit(ip);
+        
+        if (!success) {
+          const resetDate = new Date(reset * 1000).toISOString();
+          return new Response(
+            JSON.stringify({ 
+              error: "Rate limit exceeded. Try again later.",
+              retryAfter: Math.ceil((reset * 1000 - Date.now()) / 1000),
+            }),
+            { 
+              status: 429, 
+              headers: {
+                ...headers,
+                "Retry-After": Math.ceil((reset * 1000 - Date.now()) / 1000).toString(),
+              }
+            }
+          );
+        }
+      } catch (err) {
+        console.error("Rate limiter error:", err);
+        // Continue on rate limiter failure (fail open)
+      }
+    }
+
+    // ============ SECURITY: INPUT VALIDATION ============
+    let body: RequestBody;
+    try {
+      const rawBody = await req.json();
+      body = RequestBodySchema.parse(rawBody);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return new Response(
+          JSON.stringify({ 
+            error: "Invalid request format",
+            details: err.errors.map(e => `${e.path.join(".")}: ${e.message}`),
+          }),
+          { status: 400, headers }
+        );
+      }
+      return new Response(
+        JSON.stringify({ error: "Request body must be valid JSON" }),
+        { status: 400, headers }
+      );
+    }
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       return new Response(
-        JSON.stringify({ error: "GEMINI_API_KEY is not configured on the server" }),
-        { status: 500, headers: { "Content-Type": "application/json", ...cors } },
+        JSON.stringify({ error: "Server configuration error" }),
+        { status: 500, headers }
       );
     }
 
     const tavilyKey = process.env.TAVILY_API_KEY;
-    const userPrompt = (body.prompt || "").trim();
-    if (!userPrompt) {
-      return new Response(JSON.stringify({ error: "Empty prompt" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json", ...cors },
-      });
-    }
-
+    const userPrompt = body.prompt;
     const mode = detectMode(userPrompt, body.forcedMode);
     const fullPrompt = buildPrompt(mode, userPrompt, body.framerFields);
 
@@ -172,16 +273,20 @@ export default async function handler(req: Request): Promise<Response> {
     let lastErr = "";
     for (const model of MODEL_FALLBACKS) {
       try {
-        const url = `${GEMINI_BASE}/${model}:streamGenerateContent?alt=sse&key=${apiKey}`;
+        // ============ SECURITY: API KEY MOVED TO HEADER ============
+        const url = `${GEMINI_BASE}/${model}:streamGenerateContent?alt=sse`;
 
         const response = await fetch(url, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey,  // ✅ SECURE: Key in header, not URL
+          },
           body: JSON.stringify(reqBody),
         });
 
         if (!response.ok) {
-          lastErr = `[${model} ${response.status}] ${await response.text().catch(() => 'Unknown error')}`;
+          lastErr = `[${model} ${response.status}]`;
           continue;
         }
 
@@ -253,23 +358,35 @@ export default async function handler(req: Request): Promise<Response> {
             'Content-Type': 'text/plain; charset=utf-8',
             'Cache-Control': 'no-cache',
             'Connection': 'keep-alive',
-            ...cors
+            ...headers
           }
         });
 
       } catch (error) {
-        lastErr = `[${model}] ${error instanceof Error ? error.message : 'Unknown error'}`;
+        lastErr = `[${model}] Request failed`;
       }
     }
 
     return new Response(
-      JSON.stringify({ error: `Gemini upstream unavailable. ${lastErr}` }),
-      { status: 502, headers: { "Content-Type": "application/json", ...cors } },
+      JSON.stringify({ error: "Service temporarily unavailable. Please try again." }),
+      { status: 502, headers }
     );
   } catch (err) {
+    const isProduction = process.env.NODE_ENV === "production";
+    const errorMessage = isProduction 
+      ? "An error occurred processing your request" 
+      : err instanceof Error ? err.message : "Unknown error";
+
+    // Log the real error securely (without exposing to client)
+    console.error("[API Error]", {
+      timestamp: new Date().toISOString(),
+      error: err instanceof Error ? err.message : String(err),
+      ip: req.headers.get("x-forwarded-for"),
+    });
+
     return new Response(
-      JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),
-      { status: 500, headers: { "Content-Type": "application/json", ...cors } },
+      JSON.stringify({ error: errorMessage }),
+      { status: 500, headers }
     );
   }
 }
