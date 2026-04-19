@@ -4,9 +4,6 @@
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api/:path*" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
-  ],
-  "env": {
-    "ALLOWED_ORIGINS": "@allowed_origins"
-  }
+  ]
 }
 
