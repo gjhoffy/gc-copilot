@@ -1,7 +1,7 @@
 // Vercel Node serverless function: POST /api/brain
 // Holds Gemini + Tavily logic. Reads GEMINI_API_KEY and TAVILY_API_KEY from env.
 
-import { z } from "zod";
+import { any, z } from "zod";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { composePrompt, getCompositionForMode, type PromptComposition } from "./prompts";
@@ -188,22 +188,20 @@ export default async function handler(req: Request): Promise<Response> {
     try {
       const rawBody = await req.json();
       body = RequestBodySchema.parse(rawBody);
-    } catch (err) {
+    } catch any(err) {
       if (err instanceof z.ZodError) {
         return new Response(
           JSON.stringify({ 
-            error: "Invalid request format",
-            details: err.errors.map(e => `${e.path.join(".")}: ${e.message}`),
-          }),
-          { status: 400, headers }
-        );
-      }
+          } catch (err: any) {
+    if (err instanceof z.ZodError) {
       return new Response(
-        JSON.stringify({ error: "Request body must be valid JSON" }),
+        JSON.stringify({ 
+          error: "Invalid request format",
+          details: err.issues.map((e: any) => `${e.path.join(".")}: ${e.message}`),
+        }),
         { status: 400, headers }
       );
     }
-
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       return new Response(
@@ -329,7 +327,7 @@ export default async function handler(req: Request): Promise<Response> {
             'Content-Type': 'text/plain; charset=utf-8',
             'Cache-Control': 'no-cache',
             'Connection': 'keep-alive',
-            ...headers
+
           }
         });
 
