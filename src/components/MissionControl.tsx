@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { useServerFn } from "@tanstack/react-start";
 import { runBrain, getModeLabel, type BrainMode } from "@/lib/brain";
 
 type Source = { title: string; uri: string };
@@ -62,8 +61,6 @@ function loadFramerFields() {
 }
 
 export default function MissionControl() {
-  const brainFn = useServerFn(runBrain);
-
   const [prompt, setPrompt] = useState("");
   const [forcedMode, setForcedMode] = useState<"auto" | BrainMode>("auto");
   const [framerFields, setFramerFields] = useState<string>(() => loadFramerFields());
@@ -114,12 +111,10 @@ export default function MissionControl() {
     setPrompt("");
 
     try {
-      const result = await brainFn({
-        data: {
-          prompt: p,
-          forcedMode: forcedMode === "auto" ? undefined : forcedMode,
-          framerFields,
-        },
+      const result = await runBrain({
+        prompt: p,
+        forcedMode: forcedMode === "auto" ? undefined : forcedMode,
+        framerFields,
       });
       setRuns((prev) =>
         prev.map((r) =>
