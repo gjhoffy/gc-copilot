@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getAvailableModules, getCompositionForMode, type PromptModule } from "@/lib/prompts";
+import { getAvailableModules, getCompositionForMode, type PromptModule } from "../../lib/prompts";
 
 export type AppSettings = {
   // Appearance
