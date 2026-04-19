@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getAvailableModules, getCompositionForMode, type PromptModule } from "@/lib/prompts";
 
 export type AppSettings = {
   // Appearance
@@ -83,10 +84,21 @@ interface SettingsDialogProps {
 
 export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const [settings, setSettings] = useState<AppSettings>(loadSettings());
+  const [selectedMode, setSelectedMode] = useState<string>("chat");
+  const [activeModules, setActiveModules] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     applySettings(settings);
   }, [settings]);
+
+  // Initialize active modules from default compositions
+  useEffect(() => {
+    const initialModules: Record<string, string[]> = {};
+    ["market", "blog", "page", "audit", "framer", "chat"].forEach(mode => {
+      initialModules[mode] = getCompositionForMode(mode).modules;
+    });
+    setActiveModules(initialModules);
+  }, []);
 
   const handleSettingChange = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
     const newSettings = { ...settings, [key]: value };
@@ -110,9 +122,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
         </DialogHeader>
 
         <Tabs defaultValue="appearance" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="appearance">Appearance</TabsTrigger>
             <TabsTrigger value="behavior">Behavior</TabsTrigger>
+            <TabsTrigger value="prompts">Prompts</TabsTrigger>
           </TabsList>
 
           <TabsContent value="appearance" className="space-y-6">
@@ -281,6 +294,89 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 />
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="prompts" className="space-y-6">
+            <div className="space-y-4">
+              <div>
+                <Label className="font-display uppercase tracking-widest">Modular Prompt System</Label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Customize which prompt modules are active for different modes
+                </p>
+              </div>
+
+              {/* Mode selector */}
+              <div className="space-y-3">
+                <Label className="font-display uppercase tracking-widest">Mode</Label>
+                <select
+                  value={selectedMode}
+                  onChange={(e) => setSelectedMode(e.target.value)}
+                  className="w-full rounded border-2 border-border bg-background px-3 py-2 font-mono text-sm"
+                >
+                  <option value="market">Market Recon</option>
+                  <option value="blog">Blog Content</option>
+                  <option value="page">Landing Page</option>
+                  <option value="audit">Site Audit</option>
+                  <option value="framer">Framer CMS</option>
+                  <option value="chat">Strategy Chat</option>
+                </select>
+              </div>
+
+              {/* Module list */}
+              <div className="space-y-3">
+                <Label className="font-display uppercase tracking-widest">Active Modules</Label>
+                <div className="max-h-64 overflow-y-auto space-y-2">
+                  {getAvailableModules().map((module) => {
+                    const isActive = activeModules[selectedMode]?.includes(module.id) ?? false;
+                    const isRequired = module.required ?? false;
+
+                    return (
+                      <div key={module.id} className="flex items-start gap-3 p-3 rounded border-2 border-border">
+                        <Switch
+                          checked={isActive}
+                          disabled={isRequired}
+                          onCheckedChange={(checked) => {
+                            const currentModules = activeModules[selectedMode] || [];
+                            const newModules = checked
+                              ? [...currentModules, module.id]
+                              : currentModules.filter(id => id !== module.id);
+
+                            setActiveModules(prev => ({
+                              ...prev,
+                              [selectedMode]: newModules
+                            }));
+                          }}
+                          className="mt-0.5"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <Label className="font-medium text-sm cursor-pointer">
+                              {module.name}
+                              {isRequired && <span className="text-destructive ml-1">*</span>}
+                            </Label>
+                            {module.tags && (
+                              <div className="flex gap-1">
+                                {module.tags.map(tag => (
+                                  <span key={tag} className="px-1.5 py-0.5 text-[10px] bg-primary/10 text-primary rounded font-mono uppercase">
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {module.description}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  * Required modules cannot be disabled
+                </p>
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
 

@@ -4,6 +4,7 @@
 import { z } from "zod";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import { composePrompt, getCompositionForMode, type PromptComposition } from "../src/lib/prompts";
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const MODEL_FALLBACKS = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"];
@@ -68,45 +69,12 @@ const LOCALE = `Primary service area: Doylestown, PA (ZIPs 18901, 18902).
 Secondary: Buckingham, New Hope (18938), Newtown (18940), Warrington (18976), Furlong.
 County: Bucks County, Pennsylvania.`;
 
-const SYSTEM_PRIMER = `You are the CONSTRUCTBUILT GIGA BRAIN — the in-house strategist for an elite General Contractor & Painting operator in Bucks County, PA.
-
-LOCALE LOCK (use in every answer where relevant):
-${LOCALE}
-
-VOICE — non-negotiable:
-- Authoritative, rugged, professional. Senior project-manager-to-client tone.
-- Zero AI fluff. No "I'm an AI", no "as of my knowledge", no hedging, no apologies.
-- No em-dash openers, no "delve", "tapestry", "navigate the landscape", "in today's world".
-- Short, declarative sentences. Specifics > adjectives. Numbers, ZIPs, brand names, line items.
-- Plain markdown. H2/H3 questions. Bulleted facts. Code fences for JSON.
-
-2026 STANDARDS:
-- TRUST VELOCITY: NAP consistency, license #, GBP alignment, recent reviews, neighborhood entities, project recency.
-- AIO OPTIMIZATION: extractive answer in the first sentence under every heading. Fact-dense. Citable. Include LocalBusiness / Service / FAQPage / HowTo schema where it fits.
-- E-E-A-T proofs inline: years on tools, crew size, license #, insurance, sample project addresses (bracket placeholders OK).
-
-GROUNDING:
-- You have been provided with live 2026 web search results below. Use them. Cite live 2026 data — local pricing, weather, code/permit notes, competitor signals.
-- If a query has no local angle, still anchor to Bucks County context.
-
-ROUTING (auto-detected upstream — honor the mode tag):
-- [MODE: market] — competitive + pricing + demand intel brief.
-- [MODE: blog] — full SEO blog package (see blog spec).
-- [MODE: page] — landing page copy (AIO-extractive, schema, FAQ).
-- [MODE: audit] — Framer-specific technical/SEO audit with ranked fixes.
-- [MODE: framer] — fill the user's CMS fields verbatim.
-- [MODE: chat] — direct strategic answer.
-
-BLOG SPEC (when [MODE: blog]):
-Output in this exact order, no preamble:
-1. **THE HOOK** — 2 sentences, extractive, snippet-bait.
-2. **TL;DR** — 4 bullets, 14 words max each.
-3. **THE LOCAL PROOF** — 1 paragraph naming Doylestown/Bucks County architecture, streets, or 2026 weather realities (humidity, freeze-thaw cycles, etc.).
-4. **BODY** — 5 H2 sections, each opens with a question and a 1-sentence extractive answer, then 120–180 words. Mention real neighborhoods, ZIPs, materials, brands.
-5. **FAQ** — 6 Q&A, ≤55 words each.
-6. **SOCIAL** — \`### Reel Script (30s)\` with HOOK / BUILD / PAYOFF / CTA timestamps, then \`### Instagram Caption\` (≤180 chars + 8 hashtags).
-7. **FRAMER CMS BLOCK** — a single \`\`\`json fenced block. If the user provided field names, use those EXACT keys. Otherwise default to: title, slug, excerpt, hero_alt, body_md, faq, schema_jsonld, tags, published_at, reading_time_min.
-8. **JSON-LD** — Article + FAQPage in a fenced \`\`\`json block.`;
+// ============ MODULAR PROMPT SYSTEM ============
+// System prompt is now composed from reusable modules
+function buildSystemPrompt(mode: BrainMode): string {
+  const composition = getCompositionForMode(mode);
+  return composePrompt(composition);
+}
 
 type BrainMode = "market" | "blog" | "page" | "audit" | "framer" | "chat";
 
@@ -264,8 +232,11 @@ export default async function handler(req: Request): Promise<Response> {
 
     const finalPrompt = fullPrompt + searchContext;
 
+    // Build modular system prompt based on detected mode
+    const systemPrompt = buildSystemPrompt(mode);
+
     const reqBody = {
-      systemInstruction: { parts: [{ text: SYSTEM_PRIMER }] },
+      systemInstruction: { parts: [{ text: systemPrompt }] },
       contents: [{ role: "user", parts: [{ text: finalPrompt }] }],
       generationConfig: { temperature: 0.55, maxOutputTokens: 6144 },
     };
