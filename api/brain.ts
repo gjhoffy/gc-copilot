@@ -171,31 +171,97 @@ export default async function handler(req: Request): Promise<Response> {
 
     let lastErr = "";
     for (const model of MODEL_FALLBACKS) {
-      for (let attempt = 0; attempt < 2; attempt++) {
-        const url = `${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`;
-        const res = await fetch(url, {
+      try {
+        const url = `${GEMINI_BASE}/${model}:streamGenerateContent?alt=sse&key=${apiKey}`;
+
+        const response = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(reqBody),
         });
-        const json = await res.json().catch(() => ({}));
-        if (res.ok) {
-          const d = json as {
-            candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-          };
-          const text =
-            d?.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") ?? "";
-          const sources = searchResults.map((r) => ({ title: r.title, uri: r.uri }));
-          return new Response(JSON.stringify({ text, sources, mode, model }), {
-            status: 200,
-            headers: { "Content-Type": "application/json", ...cors },
-          });
+
+        if (!response.ok) {
+          lastErr = `[${model} ${response.status}] ${await response.text().catch(() => 'Unknown error')}`;
+          continue;
         }
-        lastErr = `[${model} ${res.status}] ${JSON.stringify(json).slice(0, 240)}`;
-        if (![429, 500, 502, 503, 504].includes(res.status)) break;
-        if (attempt === 0) await new Promise((r) => setTimeout(r, 1300));
+
+        // Create a streaming response
+        const stream = new ReadableStream({
+          async start(controller) {
+            const reader = response.body?.getReader();
+            if (!reader) {
+              controller.error(new Error('No response body'));
+              return;
+            }
+
+            let buffer = '';
+            const encoder = new TextEncoder();
+
+            try {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += new TextDecoder().decode(value);
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                  if (line.startsWith('data: ')) {
+                    const data = line.slice(6);
+                    if (data === '[DONE]') continue;
+
+                    try {
+                      const parsed = JSON.parse(data);
+                      const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                      if (text) {
+                        const chunk = JSON.stringify({
+                          text,
+                          done: false,
+                          mode,
+                          model
+                        }) + '\n';
+                        controller.enqueue(encoder.encode(chunk));
+                      }
+                    } catch (e) {
+                      // Skip invalid JSON
+                    }
+                  }
+                }
+              }
+
+              // Send final chunk with sources
+              const sources = searchResults.map((r) => ({ title: r.title, uri: r.uri }));
+              const finalChunk = JSON.stringify({
+                text: '',
+                sources,
+                done: true,
+                mode,
+                model
+              }) + '\n';
+              controller.enqueue(encoder.encode(finalChunk));
+              controller.close();
+
+            } catch (error) {
+              controller.error(error);
+            }
+          }
+        });
+
+        return new Response(stream, {
+          headers: {
+            'Content-Type': 'text/plain; charset=utf-8',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            ...cors
+          }
+        });
+
+      } catch (error) {
+        lastErr = `[${model}] ${error instanceof Error ? error.message : 'Unknown error'}`;
       }
     }
+
     return new Response(
       JSON.stringify({ error: `Gemini upstream unavailable. ${lastErr}` }),
       { status: 502, headers: { "Content-Type": "application/json", ...cors } },
