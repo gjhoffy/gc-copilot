@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,7 +18,7 @@ export type AppSettings = {
   primaryColor: "blue" | "amber" | "red" | "green" | "purple";
   fontSize: "sm" | "md" | "lg";
   density: "compact" | "normal" | "spacious";
-  
+
   // Functionality
   autoStream: boolean;
   showSourcesCount: boolean;
@@ -52,19 +58,26 @@ export function applySettings(settings: AppSettings) {
   const root = document.documentElement;
 
   // Theme
-  if (settings.theme === "dark" || (settings.theme === "auto" && matchMedia("(prefers-color-scheme: dark)").matches)) {
+  if (
+    settings.theme === "dark" ||
+    (settings.theme === "auto" && matchMedia("(prefers-color-scheme: dark)").matches)
+  ) {
     root.classList.add("dark");
   } else {
     root.classList.remove("dark");
   }
 
   // Font size
-  root.style.setProperty("--font-size-scale", 
-    settings.fontSize === "sm" ? "0.9" : settings.fontSize === "lg" ? "1.1" : "1");
+  root.style.setProperty(
+    "--font-size-scale",
+    settings.fontSize === "sm" ? "0.9" : settings.fontSize === "lg" ? "1.1" : "1",
+  );
 
   // Density
-  root.style.setProperty("--spacing-scale",
-    settings.density === "compact" ? "0.8" : settings.density === "spacious" ? "1.2" : "1");
+  root.style.setProperty(
+    "--spacing-scale",
+    settings.density === "compact" ? "0.8" : settings.density === "spacious" ? "1.2" : "1",
+  );
 
   // Primary color
   const colorMap: Record<string, string> = {
@@ -94,7 +107,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   // Initialize active modules from default compositions
   useEffect(() => {
     const initialModules: Record<string, string[]> = {};
-    ["market", "blog", "page", "audit", "framer", "chat"].forEach(mode => {
+    ["market", "blog", "page", "audit", "framer", "chat"].forEach((mode) => {
       initialModules[mode] = getCompositionForMode(mode).modules;
     });
     setActiveModules(initialModules);
@@ -133,7 +146,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             <div className="space-y-3">
               <Label className="font-display uppercase tracking-widest">Theme</Label>
               <div className="space-y-2">
-                {(['dark', 'light', 'auto'] as const).map((t) => (
+                {(["dark", "light", "auto"] as const).map((t) => (
                   <div key={t} className="flex items-center gap-2">
                     <input
                       type="radio"
@@ -141,10 +154,14 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                       name="theme"
                       value={t}
                       checked={settings.theme === t}
-                      onChange={(e) => handleSettingChange('theme', e.target.value as AppSettings['theme'])}
+                      onChange={(e) =>
+                        handleSettingChange("theme", e.target.value as AppSettings["theme"])
+                      }
                       className="h-4 w-4 cursor-pointer"
                     />
-                    <Label htmlFor={`theme-${t}`} className="cursor-pointer capitalize font-normal">{t}</Label>
+                    <Label htmlFor={`theme-${t}`} className="cursor-pointer capitalize font-normal">
+                      {t}
+                    </Label>
                   </div>
                 ))}
               </div>
@@ -154,22 +171,28 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             <div className="space-y-3">
               <Label className="font-display uppercase tracking-widest">Primary Color</Label>
               <div className="grid grid-cols-5 gap-2">
-                {(['blue', 'amber', 'red', 'green', 'purple'] as const).map((color) => (
+                {(["blue", "amber", "red", "green", "purple"] as const).map((color) => (
                   <button
                     key={color}
-                    onClick={() => handleSettingChange('primaryColor', color)}
+                    onClick={() => handleSettingChange("primaryColor", color)}
                     className={`h-10 rounded border-2 capitalize transition-all ${
                       settings.primaryColor === color
-                        ? 'border-foreground ring-2 ring-primary'
-                        : 'border-border'
+                        ? "border-foreground ring-2 ring-primary"
+                        : "border-border"
                     }`}
                     style={{
-                      backgroundColor: ['blue', 'amber', 'red', 'green', 'purple'].includes(color)
-                        ? { blue: 'hsl(217, 91%, 60%)', amber: 'hsl(45, 93%, 47%)', red: 'hsl(0, 84%, 60%)', green: 'hsl(142, 71%, 45%)', purple: 'hsl(280, 85%, 55%)' }[color]
-                        : 'transparent'
+                      backgroundColor: ["blue", "amber", "red", "green", "purple"].includes(color)
+                        ? {
+                            blue: "hsl(217, 91%, 60%)",
+                            amber: "hsl(45, 93%, 47%)",
+                            red: "hsl(0, 84%, 60%)",
+                            green: "hsl(142, 71%, 45%)",
+                            purple: "hsl(280, 85%, 55%)",
+                          }[color]
+                        : "transparent",
                     }}
                   >
-                    {settings.primaryColor === color && '✓'}
+                    {settings.primaryColor === color && "✓"}
                   </button>
                 ))}
               </div>
@@ -179,14 +202,12 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             <div className="space-y-3">
               <Label className="font-display uppercase tracking-widest">Font Size</Label>
               <div className="flex gap-2">
-                {(['sm', 'md', 'lg'] as const).map((size) => (
+                {(["sm", "md", "lg"] as const).map((size) => (
                   <button
                     key={size}
-                    onClick={() => handleSettingChange('fontSize', size)}
+                    onClick={() => handleSettingChange("fontSize", size)}
                     className={`flex-1 rounded border-2 px-3 py-2 font-mono text-[10px] uppercase transition-all ${
-                      settings.fontSize === size
-                        ? 'border-primary bg-primary/10'
-                        : 'border-border'
+                      settings.fontSize === size ? "border-primary bg-primary/10" : "border-border"
                     }`}
                   >
                     {size}
@@ -199,14 +220,14 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             <div className="space-y-3">
               <Label className="font-display uppercase tracking-widest">Spacing</Label>
               <div className="flex gap-2">
-                {(['compact', 'normal', 'spacious'] as const).map((density) => (
+                {(["compact", "normal", "spacious"] as const).map((density) => (
                   <button
                     key={density}
-                    onClick={() => handleSettingChange('density', density)}
+                    onClick={() => handleSettingChange("density", density)}
                     className={`flex-1 rounded border-2 px-3 py-2 font-mono text-[10px] uppercase transition-all ${
                       settings.density === density
-                        ? 'border-primary bg-primary/10'
-                        : 'border-border'
+                        ? "border-primary bg-primary/10"
+                        : "border-border"
                     }`}
                   >
                     {density}
@@ -225,7 +246,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               </div>
               <Switch
                 checked={settings.autoStream}
-                onCheckedChange={(checked) => handleSettingChange('autoStream', checked)}
+                onCheckedChange={(checked) => handleSettingChange("autoStream", checked)}
               />
             </div>
 
@@ -237,7 +258,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               </div>
               <Switch
                 checked={settings.showSourcesCount}
-                onCheckedChange={(checked) => handleSettingChange('showSourcesCount', checked)}
+                onCheckedChange={(checked) => handleSettingChange("showSourcesCount", checked)}
               />
             </div>
 
@@ -249,7 +270,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               </div>
               <Switch
                 checked={settings.showExecutionTime}
-                onCheckedChange={(checked) => handleSettingChange('showExecutionTime', checked)}
+                onCheckedChange={(checked) => handleSettingChange("showExecutionTime", checked)}
               />
             </div>
 
@@ -257,11 +278,15 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             <div className="flex items-center justify-between">
               <div>
                 <Label className="font-display uppercase tracking-widest">Keyboard Shortcuts</Label>
-                <p className="mt-1 text-xs text-muted-foreground">⌘/CTRL+ENTER to execute, / to focus</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  ⌘/CTRL+ENTER to execute, / to focus
+                </p>
               </div>
               <Switch
                 checked={settings.enableKeyboardShortcuts}
-                onCheckedChange={(checked) => handleSettingChange('enableKeyboardShortcuts', checked)}
+                onCheckedChange={(checked) =>
+                  handleSettingChange("enableKeyboardShortcuts", checked)
+                }
               />
             </div>
 
@@ -269,11 +294,13 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             <div className="flex items-center justify-between">
               <div>
                 <Label className="font-display uppercase tracking-widest">Preserve History</Label>
-                <p className="mt-1 text-xs text-muted-foreground">Save session across page reloads</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Save session across page reloads
+                </p>
               </div>
               <Switch
                 checked={settings.preserveHistory}
-                onCheckedChange={(checked) => handleSettingChange('preserveHistory', checked)}
+                onCheckedChange={(checked) => handleSettingChange("preserveHistory", checked)}
               />
             </div>
 
@@ -289,7 +316,12 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   min="5"
                   max="500"
                   value={settings.maxHistoryItems}
-                  onChange={(e) => handleSettingChange('maxHistoryItems', Math.max(5, parseInt(e.target.value) || 50))}
+                  onChange={(e) =>
+                    handleSettingChange(
+                      "maxHistoryItems",
+                      Math.max(5, parseInt(e.target.value) || 50),
+                    )
+                  }
                   className="w-full rounded border-2 border-border bg-background px-3 py-2 font-mono text-sm"
                 />
               </div>
@@ -299,7 +331,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           <TabsContent value="prompts" className="space-y-6">
             <div className="space-y-4">
               <div>
-                <Label className="font-display uppercase tracking-widest">Modular Prompt System</Label>
+                <Label className="font-display uppercase tracking-widest">
+                  Modular Prompt System
+                </Label>
                 <p className="mt-1 text-xs text-muted-foreground">
                   Customize which prompt modules are active for different modes
                 </p>
@@ -331,7 +365,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                     const isRequired = module.required ?? false;
 
                     return (
-                      <div key={module.id} className="flex items-start gap-3 p-3 rounded border-2 border-border">
+                      <div
+                        key={module.id}
+                        className="flex items-start gap-3 p-3 rounded border-2 border-border"
+                      >
                         <Switch
                           checked={isActive}
                           disabled={isRequired}
@@ -339,11 +376,11 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                             const currentModules = activeModules[selectedMode] || [];
                             const newModules = checked
                               ? [...currentModules, module.id]
-                              : currentModules.filter(id => id !== module.id);
+                              : currentModules.filter((id) => id !== module.id);
 
-                            setActiveModules(prev => ({
+                            setActiveModules((prev) => ({
                               ...prev,
-                              [selectedMode]: newModules
+                              [selectedMode]: newModules,
                             }));
                           }}
                           className="mt-0.5"
@@ -356,17 +393,18 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                             </Label>
                             {module.tags && (
                               <div className="flex gap-1">
-                                {module.tags.map(tag => (
-                                  <span key={tag} className="px-1.5 py-0.5 text-[10px] bg-primary/10 text-primary rounded font-mono uppercase">
+                                {module.tags.map((tag) => (
+                                  <span
+                                    key={tag}
+                                    className="px-1.5 py-0.5 text-[10px] bg-primary/10 text-primary rounded font-mono uppercase"
+                                  >
                                     {tag}
                                   </span>
                                 ))}
                               </div>
                             )}
                           </div>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {module.description}
-                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">{module.description}</p>
                         </div>
                       </div>
                     );

@@ -3,6 +3,7 @@
 ## Elite Contractor Voice Guidelines
 
 **Non-negotiable voice rules:**
+
 - **Authoritative, rugged, professional.** Senior project-manager-to-client tone.
 - **Zero AI fluff.** No "I'm an AI", no "as of my knowledge", no hedging, no apologies.
 - **No em-dash openers.** Avoid "delve", "tapestry", "navigate the landscape", "in today's world".
@@ -10,6 +11,7 @@
 - **Plain markdown.** H2/H3 questions. Bulleted facts. Code fences for JSON.
 
 **2026 Standards to embed:**
+
 - **TRUST VELOCITY:** NAP consistency, license #, GBP alignment, recent reviews, neighborhood entities, project recency.
 - **AIO OPTIMIZATION:** Extractive answer in the first sentence under every heading. Fact-dense. Citable. Include LocalBusiness / Service / FAQPage / HowTo schema where it fits.
 - **E-E-A-T proofs inline:** Years on tools, crew size, license #, insurance, sample project addresses (bracket placeholders OK).
@@ -19,9 +21,11 @@
 ## Geographic Focus: Doylestown & Bucks County, PA
 
 **Primary service area:**
+
 - **Doylestown, PA** — ZIPs 18901, 18902
 
 **Secondary areas:**
+
 - Buckingham
 - New Hope (18938)
 - Newtown (18940)
@@ -60,6 +64,7 @@ When generating blog content, the AI outputs a **FRAMER CMS BLOCK** as a fenced 
 If you've configured custom Framer Blog collection fields, paste them in the app's settings once. The AI will conform all blog outputs to your exact field names automatically.
 
 **Example custom fields:**
+
 - `postTitle`, `postSlug`, `seoDescription`, `mainContent`, `socialCaption`
 
 ### Output Structure for Blog Mode
@@ -79,14 +84,14 @@ If you've configured custom Framer Blog collection fields, paste them in the app
 
 The Giga Brain auto-detects your intent from your prompt:
 
-| Mode | Trigger Keywords | Output |
-|------|------------------|--------|
-| **blog** | "blog", "article", "post about", "write post", "reel", "caption", "content for" | Full blog package with Framer JSON |
-| **market** | "competitor", "market", "pricing in", "trends", "demand", "who ranks" | Competitive + pricing + demand intel brief |
-| **page** | "landing page", "service page", "page for" | Landing page copy (AIO-extractive, schema, FAQ) |
-| **audit** | "audit", "review my site", "score my", "check my framer", "crawl" | Framer-specific technical/SEO audit with ranked fixes |
-| **framer** | "cms", "framer field", "field names", "paste framer" | Fill Framer CMS fields verbatim (markdown table output) |
-| **chat** | (default) | Direct strategic answer |
+| Mode       | Trigger Keywords                                                                | Output                                                  |
+| ---------- | ------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| **blog**   | "blog", "article", "post about", "write post", "reel", "caption", "content for" | Full blog package with Framer JSON                      |
+| **market** | "competitor", "market", "pricing in", "trends", "demand", "who ranks"           | Competitive + pricing + demand intel brief              |
+| **page**   | "landing page", "service page", "page for"                                      | Landing page copy (AIO-extractive, schema, FAQ)         |
+| **audit**  | "audit", "review my site", "score my", "check my framer", "crawl"               | Framer-specific technical/SEO audit with ranked fixes   |
+| **framer** | "cms", "framer field", "field names", "paste framer"                            | Fill Framer CMS fields verbatim (markdown table output) |
+| **chat**   | (default)                                                                       | Direct strategic answer                                 |
 
 ---
 
@@ -100,5 +105,5 @@ The Giga Brain auto-detects your intent from your prompt:
 
 ---
 
-*Last updated: 2026-04-17*
-*Project: ConstructBuilt Giga Brain 2026*
+_Last updated: 2026-04-17_
+_Project: ConstructBuilt Giga Brain 2026_

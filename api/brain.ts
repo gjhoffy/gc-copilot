@@ -8,15 +8,29 @@ import { composePrompt, getCompositionForMode, type PromptComposition } from "./
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const MODEL_FALLBACKS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"];
+
+type TavilyResult = {
+  title: string;
+  url: string;
+  content: string;
+};
+
+type TavilyResponse = {
+  results: TavilyResult[];
+};
 const TAVILY_BASE = "https://api.tavily.com/search";
 
 // ============ SECURITY: CORS WHITELIST ============
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || "https://localhost:3000").split(",").filter(Boolean);
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || "https://localhost:3000")
+  .split(",")
+  .filter(Boolean);
 
 function getCorsHeaders(origin?: string | null) {
-  const isAllowed = origin && ALLOWED_ORIGINS.some(allowed =>
-    new RegExp("^" + allowed.replace(/\*/g, ".*") + "$").test(origin)
-  );
+  const isAllowed =
+    origin &&
+    ALLOWED_ORIGINS.some((allowed) =>
+      new RegExp("^" + allowed.replace(/\*/g, ".*") + "$").test(origin),
+    );
   return {
     "Access-Control-Allow-Origin": isAllowed ? origin : "",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -37,27 +51,26 @@ function getSecurityHeaders() {
 
 // ============ SECURITY: INPUT VALIDATION ============
 const RequestBodySchema = z.object({
-  prompt: z.string()
+  prompt: z
+    .string()
     .min(1, "Prompt cannot be empty")
     .max(3000, "Prompt exceeds maximum length of 3000 characters")
     .trim(),
   forcedMode: z.enum(["market", "blog", "page", "audit", "framer", "chat"]).optional(),
-  framerFields: z.string()
-    .max(5000, "Framer fields exceed maximum length")
-    .optional(),
+  framerFields: z.string().max(5000, "Framer fields exceed maximum length").optional(),
 });
 
 type RequestBody = z.infer<typeof RequestBodySchema>;
 
 // ============ SECURITY: RATE LIMITING ============
-const redis = process.env.UPSTASH_REDIS_REST_URL 
-  ? Redis.fromEnv() 
-  : null;
+const redis = process.env.UPSTASH_REDIS_REST_URL ? Redis.fromEnv() : null;
 
-const ratelimit = redis ? new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(10, "1 h"),
-}) : null;
+const ratelimit = redis
+  ? new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(10, "1 h"),
+    })
+  : null;
 
 // ============ MODULAR PROMPT SYSTEM ============
 type BrainMode = "market" | "blog" | "page" | "audit" | "framer" | "chat";
@@ -104,14 +117,14 @@ async function tavilySearch(query: string, apiKey: string) {
       }),
     });
     if (!res.ok) return [];
-    const json = await res.json() as any;
+    const json = (await res.json()) as { results?: { title?: string; url?: string; content?: string }[] };
     return (json.results || [])
-      .map((r: any) => ({
+      .map((r) => ({
         title: r.title || "Source",
         uri: r.url || "",
         content: r.content || "",
       }))
-      .filter((r: any) => r.uri);
+      .filter((r) => r.uri);
   } catch {
     return [];
   }
@@ -121,50 +134,63 @@ export default async function handler(req: Request): Promise<Response> {
   const origin = req.headers.get("Origin");
   const cors = getCorsHeaders(origin);
   const securityHeaders = getSecurityHeaders();
-  const headers = { 
-    ...cors, 
+  const headers = {
+    ...cors,
     ...securityHeaders,
-    "Content-Type": "application/json" 
+    "Content-Type": "application/json",
   };
 
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers });
-  if (req.method !== "POST") return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405, headers });
+  if (req.method !== "POST")
+    return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405, headers });
 
   try {
     if (ratelimit) {
       const ip = req.headers.get("x-forwarded-for") || "unknown";
       const { success } = await ratelimit.limit(ip);
-      if (!success) return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429, headers });
+      if (!success)
+        return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
+          status: 429,
+          headers,
+        });
     }
 
     const rawBody = await req.json();
     const bodyResult = RequestBodySchema.safeParse(rawBody);
-    
+
     if (!bodyResult.success) {
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: "Invalid request format",
-          details: bodyResult.error.issues.map(e => `${e.path.join(".")}: ${e.message}`) 
-        }), 
-        { status: 400, headers }
+          details: bodyResult.error.issues.map((e) => `${e.path.join(".")}: ${e.message}`),
+        }),
+        { status: 400, headers },
       );
     }
     const body = bodyResult.data;
 
     const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) return new Response(JSON.stringify({ error: "Server config error" }), { status: 500, headers });
+    if (!apiKey)
+      return new Response(JSON.stringify({ error: "Server config error" }), {
+        status: 500,
+        headers,
+      });
 
     const mode = detectMode(body.prompt, body.forcedMode);
     const fullPrompt = buildPrompt(mode, body.prompt, body.framerFields);
 
     let searchResults: any[] = [];
     if (mode !== "framer" && process.env.TAVILY_API_KEY) {
-      searchResults = await tavilySearch(`${body.prompt} Bucks County PA 2026`, process.env.TAVILY_API_KEY);
+      searchResults = await tavilySearch(
+        `${body.prompt} Bucks County PA 2026`,
+        process.env.TAVILY_API_KEY,
+      );
     }
 
-    const searchContext = searchResults.length > 0 
-      ? `\n\nLIVE SEARCH RESULTS:\n${searchResults.map((r, i) => `[${i + 1}] ${r.title}\n${r.content}`).join("\n\n")}`
-      : "";
+    const searchContext =
+      searchResults.length > 0
+        ? `\n\nLIVE SEARCH RESULTS:\n${searchResults.map((r, i) => `[${i + 1}] ${r.title}\n${r.content}`).join("\n\n")}`
+        : "";
 
     const systemPrompt = buildSystemPrompt(mode);
     const reqBody = {
@@ -193,7 +219,7 @@ export default async function handler(req: Request): Promise<Response> {
             const reader = response.body?.getReader();
             if (!reader) return controller.close();
 
-            let buffer = '';
+            let buffer = "";
             const encoder = new TextEncoder();
             const decoder = new TextDecoder();
 
@@ -202,56 +228,66 @@ export default async function handler(req: Request): Promise<Response> {
                 const { done, value } = await reader.read();
                 if (done) break;
                 buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
-                buffer = lines.pop() || '';
+                const lines = buffer.split("\n");
+                buffer = lines.pop() || "";
 
                 for (const line of lines) {
-                  if (line.startsWith('data: ')) {
+                  if (line.startsWith("data: ")) {
                     const data = line.slice(6);
-                    if (data.trim() === '[DONE]') continue;
+                    if (data.trim() === "[DONE]") continue;
                     try {
                       const parsed = JSON.parse(data);
-                      const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                      const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text || "";
                       if (text) {
-                        controller.enqueue(encoder.encode(JSON.stringify({ text, done: false, mode, model }) + '\n'));
+                        controller.enqueue(
+                          encoder.encode(JSON.stringify({ text, done: false, mode, model }) + "\n"),
+                        );
                       }
-                    } catch {}
+                    } catch (error) {
+                      // Ignore parsing errors for malformed chunks
+                      console.warn("Failed to parse Gemini streaming chunk:", error);
+                    }
                   }
                 }
               }
-              const finalChunk = JSON.stringify({ 
-                text: '', 
-                sources: searchResults.map(r => ({ title: r.title, uri: r.uri })), 
-                done: true, 
-                mode, 
-                model 
-              }) + '\n';
+              const finalChunk =
+                JSON.stringify({
+                  text: "",
+                  sources: searchResults.map((r) => ({ title: r.title, uri: r.uri })),
+                  done: true,
+                  mode,
+                  model,
+                }) + "\n";
               controller.enqueue(encoder.encode(finalChunk));
               controller.close();
             } catch (e) {
               controller.error(e);
             }
-          }
+          },
         });
 
         return new Response(stream, {
           headers: {
-            'Content-Type': 'text/plain; charset=utf-8',
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-            ...cors // Only add CORS here, not the duplicate Content-Type
-          }
+            "Content-Type": "text/plain; charset=utf-8",
+            "Cache-Control": "no-cache",
+            Connection: "keep-alive",
+            ...cors, // Only add CORS here, not the duplicate Content-Type
+          },
         });
-
       } catch (error) {
         lastErr = "Connection failed";
       }
     }
 
-    return new Response(JSON.stringify({ error: "Service unavailable: " + lastErr }), { status: 502, headers });
-
+    return new Response(JSON.stringify({ error: "Service unavailable: " + lastErr }), {
+      status: 502,
+      headers,
+    });
   } catch (err: any) {
     console.error("[API Error]", err);
-    return new Response(JSON.stringify({ error: "Internal Server Error" }), { status: 500, headers });
+    return new Response(JSON.stringify({ error: "Internal Server Error" }), {
+      status: 500,
+      headers,
+    });
   }
 }

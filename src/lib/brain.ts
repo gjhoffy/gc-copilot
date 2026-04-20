@@ -29,6 +29,74 @@ export async function runBrain(input: {
   framerFields?: string;
   onChunk?: (chunk: BrainResult) => void;
 }): Promise<BrainResult> {
+  // Development mock - returns fake responses for testing UI
+  if (process.env.NODE_ENV === "development") {
+    return new Promise((resolve) => {
+      const mockResponse: BrainResult = {
+        text: `## Mock Response for Development
+
+This is a **mock response** for testing the UI in development mode.
+
+**Your prompt:** "${input.prompt}"
+
+**Detected mode:** ${input.forcedMode || "auto"}
+
+**Mock features:**
+- ✅ Streaming simulation
+- ✅ Source citations
+- ✅ Mode detection
+- ✅ Response formatting
+
+To test the real API, deploy to Vercel with \`GEMINI_API_KEY\` and \`TAVILY_API_KEY\` environment variables set.
+
+---
+
+### Sample Content
+This would normally contain AI-generated content based on your prompt about Bucks County construction and painting services.
+
+**Key points:**
+- Local market analysis
+- SEO-optimized content
+- Professional contractor insights
+- Bucks County specific recommendations
+
+### Sources
+- [Bucks County Business Directory](https://example.com)
+- [Doylestown Chamber of Commerce](https://example.com)
+- [PA Contractor Licensing Board](https://example.com)`,
+        sources: [
+          { title: "Bucks County Business Directory", uri: "https://example.com" },
+          { title: "Doylestown Chamber of Commerce", uri: "https://example.com" },
+          { title: "PA Contractor Licensing Board", uri: "https://example.com" },
+        ],
+        mode: (input.forcedMode as BrainMode) || "chat",
+        model: "mock-gemini-2.5-flash",
+        done: true,
+      };
+
+      // Simulate streaming by calling onChunk multiple times
+      if (input.onChunk) {
+        const words = mockResponse.text.split(" ");
+        let currentText = "";
+
+        words.forEach((word, index) => {
+          setTimeout(() => {
+            currentText += (index > 0 ? " " : "") + word;
+            input.onChunk!({
+              ...mockResponse,
+              text: currentText,
+              done: index === words.length - 1,
+            });
+          }, index * 50); // 50ms delay between words
+        });
+      }
+
+      // Resolve after simulated streaming
+      setTimeout(() => resolve(mockResponse), 2000);
+    });
+  }
+
+  // Production - real API call
   const res = await fetch("/api/brain", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -46,19 +114,19 @@ export async function runBrain(input: {
     throw new Error("No response body");
   }
 
-  let fullText = '';
+  let fullText = "";
   let finalResult: BrainResult | null = null;
 
   const decoder = new TextDecoder();
-  let buffer = '';
+  let buffer = "";
 
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
 
     buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() || '';
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
 
     for (const line of lines) {
       if (!line.trim()) continue;
@@ -88,7 +156,7 @@ export async function runBrain(input: {
           };
         }
       } catch (e) {
-        console.warn('Failed to parse streaming chunk:', line, e);
+        console.warn("Failed to parse streaming chunk:", line, e);
       }
     }
   }

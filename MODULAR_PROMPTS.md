@@ -11,6 +11,7 @@ Instead of monolithic prompt strings, prompts are now composed from reusable **m
 ### Prompt Modules
 
 Each module contains:
+
 - **ID**: Unique identifier
 - **Name**: Human-readable name
 - **Description**: What the module does
@@ -21,11 +22,13 @@ Each module contains:
 ### Available Modules
 
 #### Core Identity Modules
+
 - **Identity**: Core AI identity as ConstructBuilt Giga Brain
 - **Voice**: Communication standards and tone guidelines
 - **Locale**: Bucks County service area definition
 
 #### Specialized Modules
+
 - **Standards 2026**: Current year best practices and requirements
 - **Grounding**: Instructions for using live search results
 - **Routing**: Mode-specific behavior guidelines
@@ -42,7 +45,15 @@ Each mode (market, blog, page, audit, framer, chat) has a default composition of
 
 ```typescript
 const marketComposition = {
-  modules: ["identity", "voice", "locale", "standards_2026", "grounding", "routing", "competitive_intel"]
+  modules: [
+    "identity",
+    "voice",
+    "locale",
+    "standards_2026",
+    "grounding",
+    "routing",
+    "competitive_intel",
+  ],
 };
 ```
 
@@ -100,4 +111,4 @@ addCustomModule(newModule);
 - Module performance analytics
 - A/B testing different module combinations
 - Export/import module configurations</content>
-<parameter name="filePath">c:\Users\Gjhof\Desktop\gc-copilot\MODULAR_PROMPTS.md
+  <parameter name="filePath">c:\Users\Gjhof\Desktop\gc-copilot\MODULAR_PROMPTS.md

@@ -9,7 +9,12 @@ export default function GlobeBackground() {
     if (!mount) return;
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(
+      45,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      1000,
+    );
     camera.position.z = 1.6;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -30,14 +35,24 @@ export default function GlobeBackground() {
     });
     globeGroup.add(new THREE.Mesh(sphereGeo, wireframeMat));
 
-    const lineMat = new THREE.LineBasicMaterial({ color: "#7FFF00", transparent: true, opacity: 0.18 });
+    const lineMat = new THREE.LineBasicMaterial({
+      color: "#7FFF00",
+      transparent: true,
+      opacity: 0.18,
+    });
 
     for (let lat = -80; lat <= 80; lat += 20) {
       const phi = (lat * Math.PI) / 180;
       const points: THREE.Vector3[] = [];
       for (let i = 0; i <= 64; i++) {
         const theta = (i / 64) * Math.PI * 2;
-        points.push(new THREE.Vector3(radius * Math.cos(phi) * Math.cos(theta), radius * Math.sin(phi), radius * Math.cos(phi) * Math.sin(theta)));
+        points.push(
+          new THREE.Vector3(
+            radius * Math.cos(phi) * Math.cos(theta),
+            radius * Math.sin(phi),
+            radius * Math.cos(phi) * Math.sin(theta),
+          ),
+        );
       }
       globeGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), lineMat));
     }
@@ -47,18 +62,32 @@ export default function GlobeBackground() {
       const points: THREE.Vector3[] = [];
       for (let i = 0; i <= 64; i++) {
         const phi = (i / 64) * Math.PI - Math.PI / 2;
-        points.push(new THREE.Vector3(radius * Math.cos(phi) * Math.cos(theta), radius * Math.sin(phi), radius * Math.cos(phi) * Math.sin(theta)));
+        points.push(
+          new THREE.Vector3(
+            radius * Math.cos(phi) * Math.cos(theta),
+            radius * Math.sin(phi),
+            radius * Math.cos(phi) * Math.sin(theta),
+          ),
+        );
       }
       globeGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), lineMat));
     }
 
     const dotGeo = new THREE.SphereGeometry(0.012, 6, 6);
-    const dotMat = new THREE.MeshBasicMaterial({ color: 0xff4500, transparent: true, opacity: 0.7 });
+    const dotMat = new THREE.MeshBasicMaterial({
+      color: 0xff4500,
+      transparent: true,
+      opacity: 0.7,
+    });
     for (let i = 0; i < 60; i++) {
       const phi = Math.acos(2 * Math.random() - 1);
       const theta = Math.random() * Math.PI * 2;
       const dot = new THREE.Mesh(dotGeo, dotMat);
-      dot.position.set(radius * Math.sin(phi) * Math.cos(theta), radius * Math.cos(phi), radius * Math.sin(phi) * Math.sin(theta));
+      dot.position.set(
+        radius * Math.sin(phi) * Math.cos(theta),
+        radius * Math.cos(phi),
+        radius * Math.sin(phi) * Math.sin(theta),
+      );
       globeGroup.add(dot);
     }
 

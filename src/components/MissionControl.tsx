@@ -2,7 +2,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { runBrain, getModeLabel, type BrainMode } from "@/lib/brain";
-import { SettingsDialog, loadSettings, applySettings, type AppSettings } from "@/components/Settings";
+import {
+  SettingsDialog,
+  loadSettings,
+  applySettings,
+  type AppSettings,
+} from "@/components/Settings";
 
 type Source = { title: string; uri: string };
 type Run = {
@@ -97,10 +102,7 @@ export default function MissionControl() {
     return () => window.removeEventListener("keydown", onKey);
   }, [prompt, forcedMode, framerFields, settings.enableKeyboardShortcuts]);
 
-  const activeRun = useMemo(
-    () => runs.find((r) => r.id === active) ?? runs[0],
-    [runs, active],
-  );
+  const activeRun = useMemo(() => runs.find((r) => r.id === active) ?? runs[0], [runs, active]);
 
   async function submit() {
     const p = prompt.trim();
@@ -156,9 +158,7 @@ export default function MissionControl() {
   }
 
   const isBlogOrFramer =
-    forcedMode === "blog" ||
-    forcedMode === "framer" ||
-    /\bblog|framer field|cms/i.test(prompt);
+    forcedMode === "blog" || forcedMode === "framer" || /\bblog|framer field|cms/i.test(prompt);
 
   return (
     <div className="min-h-screen bg-background text-foreground grid-bg">
@@ -259,7 +259,8 @@ export default function MissionControl() {
                 </button>
               </div>
               <p className="mt-2 font-mono text-[10px] tracking-widest text-muted-foreground">
-                {settings.enableKeyboardShortcuts && "⌘/CTRL + ENTER · "}MODE: {forcedMode === "auto" ? "AUTO-DETECT" : forcedMode.toUpperCase()}
+                {settings.enableKeyboardShortcuts && "⌘/CTRL + ENTER · "}MODE:{" "}
+                {forcedMode === "auto" ? "AUTO-DETECT" : forcedMode.toUpperCase()}
                 {isBlogOrFramer && !framerFields ? (
                   <>
                     {" · "}
@@ -337,9 +338,7 @@ export default function MissionControl() {
                 <div className="font-mono text-sm text-destructive">✕ {activeRun.error}</div>
               ) : (
                 <article className="prose prose-invert max-w-none prose-headings:font-display prose-headings:uppercase prose-headings:tracking-tight prose-h1:text-3xl prose-h2:mt-8 prose-h2:border-b-2 prose-h2:border-border prose-h2:pb-2 prose-h2:text-2xl prose-h3:text-xl prose-pre:rounded-none prose-pre:border-2 prose-pre:border-border prose-pre:bg-background prose-code:text-primary prose-code:before:content-none prose-code:after:content-none prose-strong:text-primary prose-a:text-primary prose-a:underline-offset-4 prose-li:my-1 prose-table:border-2 prose-table:border-border prose-th:border prose-th:border-border prose-th:bg-background prose-th:p-2 prose-th:font-mono prose-th:text-xs prose-th:uppercase prose-th:tracking-widest prose-td:border prose-td:border-border prose-td:p-2 prose-td:text-sm">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {activeRun.text}
-                  </ReactMarkdown>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{activeRun.text}</ReactMarkdown>
                 </article>
               )}
             </div>
@@ -453,7 +452,8 @@ export default function MissionControl() {
               Doylestown <span className="text-foreground">18901 / 18902</span> · New Hope{" "}
               <span className="text-foreground">18938</span> · Newtown{" "}
               <span className="text-foreground">18940</span> · Warrington{" "}
-              <span className="text-foreground">18976</span> · Buckingham · Furlong · Bucks County, PA.
+              <span className="text-foreground">18976</span> · Buckingham · Furlong · Bucks County,
+              PA.
             </p>
           </div>
         </aside>
@@ -486,9 +486,9 @@ function EmptyState() {
       <div className="mx-auto mb-6 h-16 w-16 hazard-stripes" />
       <h2 className="mb-2 font-display text-2xl md:text-3xl">BRAIN STANDING BY</h2>
       <p className="mx-auto max-w-md text-sm text-muted-foreground">
-        Type a prompt or hit a quick action. The brain auto-detects intent — blog, market
-        recon, landing page, audit, or Framer CMS — and grounds every answer in live 2026
-        Bucks County data.
+        Type a prompt or hit a quick action. The brain auto-detects intent — blog, market recon,
+        landing page, audit, or Framer CMS — and grounds every answer in live 2026 Bucks County
+        data.
       </p>
     </div>
   );
@@ -506,11 +506,7 @@ function ThinkingState({ prompt }: { prompt: string }) {
       </div>
       <ul className="space-y-2">
         {[90, 80, 70, 95, 60].map((w, i) => (
-          <li
-            key={i}
-            className="h-3 animate-pulse bg-border"
-            style={{ width: `${w}%` }}
-          />
+          <li key={i} className="h-3 animate-pulse bg-border" style={{ width: `${w}%` }} />
         ))}
       </ul>
     </div>

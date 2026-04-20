@@ -148,11 +148,28 @@ export const DEFAULT_COMPOSITIONS: Record<string, PromptComposition> = {
   },
 
   market: {
-    modules: ["identity", "voice", "locale", "standards_2026", "grounding", "routing", "competitive_intel"],
+    modules: [
+      "identity",
+      "voice",
+      "locale",
+      "standards_2026",
+      "grounding",
+      "routing",
+      "competitive_intel",
+    ],
   },
 
   blog: {
-    modules: ["identity", "voice", "locale", "standards_2026", "grounding", "routing", "blog_spec", "construction_focus"],
+    modules: [
+      "identity",
+      "voice",
+      "locale",
+      "standards_2026",
+      "grounding",
+      "routing",
+      "blog_spec",
+      "construction_focus",
+    ],
   },
 
   page: {
@@ -168,23 +185,31 @@ export const DEFAULT_COMPOSITIONS: Record<string, PromptComposition> = {
   },
 
   chat: {
-    modules: ["identity", "voice", "locale", "standards_2026", "grounding", "routing", "construction_focus"],
+    modules: [
+      "identity",
+      "voice",
+      "locale",
+      "standards_2026",
+      "grounding",
+      "routing",
+      "construction_focus",
+    ],
   },
 };
 
 // Compose a prompt from modules
 export function composePrompt(composition: PromptComposition): string {
   const modules = composition.modules
-    .map(id => PROMPT_MODULES[id])
-    .filter(module => module) // Filter out undefined modules
-    .map(module => module.content)
-    .join('\n\n');
+    .map((id) => PROMPT_MODULES[id])
+    .filter((module) => module) // Filter out undefined modules
+    .map((module) => module.content)
+    .join("\n\n");
 
   const customAdditions = composition.customAdditions
-    ? composition.customAdditions.join('\n\n')
-    : '';
+    ? composition.customAdditions.join("\n\n")
+    : "";
 
-  return [modules, customAdditions].filter(Boolean).join('\n\n');
+  return [modules, customAdditions].filter(Boolean).join("\n\n");
 }
 
 // Get composition for a specific mode
@@ -204,7 +229,7 @@ export function getAvailableModules(): PromptModule[] {
 
 // Get modules by tags
 export function getModulesByTags(tags: string[]): PromptModule[] {
-  return Object.values(PROMPT_MODULES).filter(module =>
-    tags.some(tag => module.tags?.includes(tag))
+  return Object.values(PROMPT_MODULES).filter((module) =>
+    tags.some((tag) => module.tags?.includes(tag)),
   );
 }

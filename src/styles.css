@@ -72,7 +72,8 @@
     font-style: normal;
     font-weight: 900;
     font-display: swap;
-    src: url("https://fonts.gstatic.com/s/archivoblack/v21/HTxqL289NzCGg4MzN6KJ7eW6CYyF_g.woff2") format("woff2");
+    src: url("https://fonts.gstatic.com/s/archivoblack/v21/HTxqL289NzCGg4MzN6KJ7eW6CYyF_g.woff2")
+      format("woff2");
   }
   @font-face {
     font-family: "Hind";
@@ -93,7 +94,8 @@
     font-style: normal;
     font-weight: 400;
     font-display: swap;
-    src: url("https://fonts.gstatic.com/s/jetbrainsmono/v18/tDbY2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKxjPVmUsaaDhw.woff2") format("woff2");
+    src: url("https://fonts.gstatic.com/s/jetbrainsmono/v18/tDbY2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKxjPVmUsaaDhw.woff2")
+      format("woff2");
   }
 
   * {
@@ -107,14 +109,21 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  h1, h2, h3, h4 {
+  h1,
+  h2,
+  h3,
+  h4 {
     font-family: var(--font-display);
     text-transform: uppercase;
     letter-spacing: -0.02em;
   }
 
-  .font-mono { font-family: var(--font-mono); }
-  .font-display { font-family: var(--font-display); }
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+  .font-display {
+    font-family: var(--font-display);
+  }
 }
 
 @layer utilities {
