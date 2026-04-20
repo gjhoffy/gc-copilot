@@ -23,21 +23,38 @@ export type BrainResult = {
   done?: boolean;
 };
 
+function getBrainEndpoint() {
+  const configured = import.meta.env.VITE_BRAIN_API_URL?.trim();
+
+  if (!configured) {
+    return "/api/brain";
+  }
+
+  return configured.endsWith("/api/brain")
+    ? configured
+    : `${configured.replace(/\/$/, "")}/api/brain`;
+}
+
 export async function runBrain(input: {
   prompt: string;
   forcedMode?: string;
   framerFields?: string;
   onChunk?: (chunk: BrainResult) => void;
 }): Promise<BrainResult> {
-  const res = await fetch("/api/brain", {
+  const res = await fetch(getBrainEndpoint(), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
 
   if (!res.ok) {
-    const json = await res.json().catch(() => ({}));
-    throw new Error((json as { error?: string })?.error || `Brain request failed (${res.status})`);
+    const json = await res.json().catch(() => null);
+    const fallbackMessage =
+      res.status === 404
+        ? "Brain endpoint not found. Point VITE_BRAIN_API_URL to your Vercel deployment."
+        : `Brain request failed (${res.status})`;
+
+    throw new Error((json as { error?: string } | null)?.error || fallbackMessage);
   }
 
   // Handle streaming response
