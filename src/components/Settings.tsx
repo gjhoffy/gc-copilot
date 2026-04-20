@@ -47,9 +47,22 @@ export function loadSettings(): AppSettings {
   return saved ? { ...DEFAULT_SETTINGS, ...JSON.parse(saved) } : DEFAULT_SETTINGS;
 }
 
+// Debounced localStorage write to reduce I/O
+let settingsSaveTimeout: NodeJS.Timeout | null = null;
 export function saveSettings(settings: AppSettings) {
   if (typeof window === "undefined") return;
-  localStorage.setItem("gigabrain.settings", JSON.stringify(settings));
+
+  // Cancel previous timeout
+  if (settingsSaveTimeout) clearTimeout(settingsSaveTimeout);
+
+  // Debounce: wait 500ms before writing to localStorage
+  settingsSaveTimeout = setTimeout(() => {
+    localStorage.setItem("gigabrain.settings", JSON.stringify(settings));
+    applySettings(settings);
+    settingsSaveTimeout = null;
+  }, 500);
+
+  // Always apply settings immediately for visual feedback
   applySettings(settings);
 }
 

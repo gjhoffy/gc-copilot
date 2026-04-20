@@ -6,6 +6,18 @@ import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { composePrompt, getCompositionForMode, type PromptComposition } from "./prompts";
 
+// ============ ENVIRONMENT VALIDATION ============
+function validateEnvironment(): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+  if (!process.env.GEMINI_API_KEY) {
+    errors.push("GEMINI_API_KEY environment variable is required. See .env.example");
+  }
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
+}
+
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const MODEL_FALLBACKS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"];
 
@@ -20,33 +32,46 @@ type TavilyResponse = {
 };
 const TAVILY_BASE = "https://api.tavily.com/search";
 
-// ============ SECURITY: CORS WHITELIST ============
+// ============ SECURITY: CORS WHITELIST (STRICT - NO WILDCARDS) ============
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || "https://localhost:3000")
   .split(",")
+  .map((s) => s.trim())
   .filter(Boolean);
 
-function getCorsHeaders(origin?: string | null) {
-  const isAllowed =
-    origin &&
-    ALLOWED_ORIGINS.some((allowed) =>
-      new RegExp("^" + allowed.replace(/\*/g, ".*") + "$").test(origin),
-    );
+function getCorsHeaders(origin?: string | null): Record<string, string> {
+  // Exact origin matching only - NO regex wildcards to prevent subdomain hijacking
+  const isAllowed = origin && ALLOWED_ORIGINS.includes(origin);
   return {
     "Access-Control-Allow-Origin": isAllowed ? origin : "",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, x-goog-api-key",
+    "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Allow-Credentials": "true",
   };
 }
 
-// ============ SECURITY: HEADERS ============
-function getSecurityHeaders() {
+// ============ SECURITY: HEADERS (HSTS + CSP) ============
+function getSecurityHeaders(): Record<string, string> {
   return {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "X-XSS-Protection": "1; mode=block",
     "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+    "Content-Security-Policy":
+      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:;",
   };
+}
+
+// ============ SECURITY: INPUT SANITIZATION ============
+function sanitizeFramerFields(input: string): string {
+  // Remove potentially dangerous characters while preserving field structure
+  // Allow: alphanumeric, spaces, newlines, underscores, parentheses, hyphens, commas
+  return input
+    .replace(/[<>"'`]/g, "") // Remove quotes and angle brackets
+    .replace(/javascript:/gi, "") // Remove javascript: protocol
+    .replace(/on\w+\s*=/gi, "") // Remove event handlers (onclick=, onerror=, etc)
+    .replace(/\[MODE:/gi, "[MODE") // Prevent prompt injection by breaking [MODE: syntax
+    .substring(0, 2000); // Hard limit (reduced from 5000)
 }
 
 // ============ SECURITY: INPUT VALIDATION ============
@@ -57,7 +82,11 @@ const RequestBodySchema = z.object({
     .max(3000, "Prompt exceeds maximum length of 3000 characters")
     .trim(),
   forcedMode: z.enum(["market", "blog", "page", "audit", "framer", "chat"]).optional(),
-  framerFields: z.string().max(5000, "Framer fields exceed maximum length").optional(),
+  framerFields: z
+    .string()
+    .max(2000, "Framer fields exceed maximum length")
+    .transform(sanitizeFramerFields)
+    .optional(),
 });
 
 type RequestBody = z.infer<typeof RequestBodySchema>;
@@ -281,15 +310,34 @@ export default async function handler(req: Request): Promise<Response> {
       }
     }
 
-    return new Response(JSON.stringify({ error: "Service unavailable: " + lastErr }), {
-      status: 502,
-      headers,
-    });
+    return new Response(
+      JSON.stringify({
+        error: "Service temporarily unavailable. Please try again in a moment.",
+        traceId: Math.random().toString(36).substring(2, 11), // For support
+      }),
+      {
+        status: 502,
+        headers,
+      },
+    );
   } catch (err: unknown) {
-    console.error("[API Error]", err);
-    return new Response(JSON.stringify({ error: "Internal Server Error" }), {
-      status: 500,
-      headers,
+    // Log full error server-side for debugging, but don't expose to client
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    console.error("[API Error]", {
+      timestamp: new Date().toISOString(),
+      error: errorMsg,
+      // Don't log stack trace with potentially sensitive info
     });
+
+    return new Response(
+      JSON.stringify({
+        error: "Internal server error. Please try again later.",
+        traceId: Math.random().toString(36).substring(2, 11),
+      }),
+      {
+        status: 500,
+        headers,
+      },
+    );
   }
 }

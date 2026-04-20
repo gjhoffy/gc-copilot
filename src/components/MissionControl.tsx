@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { runBrain, getModeLabel, type BrainMode } from "@/lib/brain";
@@ -76,34 +76,58 @@ export default function MissionControl() {
   const [settings, setSettings] = useState<AppSettings>(loadSettings());
   const [showSettings, setShowSettings] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const framerFieldsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     applySettings(settings);
   }, [settings]);
 
+  // Debounce framer fields localStorage writes (500ms)
   useEffect(() => {
-    localStorage.setItem("gigabrain.framerFields", framerFields);
+    if (framerFieldsTimeoutRef.current) {
+      clearTimeout(framerFieldsTimeoutRef.current);
+    }
+
+    framerFieldsTimeoutRef.current = setTimeout(() => {
+      localStorage.setItem("gigabrain.framerFields", framerFields);
+      framerFieldsTimeoutRef.current = null;
+    }, 500);
+
+    return () => {
+      if (framerFieldsTimeoutRef.current) {
+        clearTimeout(framerFieldsTimeoutRef.current);
+      }
+    };
   }, [framerFields]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!settings.enableKeyboardShortcuts) return;
+
+      const target = document.activeElement as HTMLElement;
+      const isInInput = target?.tagName === "TEXTAREA" || target?.tagName === "INPUT";
+
       if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-        e.preventDefault();
-        void submit();
+        if (!isInInput || target?.getAttribute("data-cmd-enter") === "true") {
+          e.preventDefault();
+          void submit();
+        }
       }
-      if (e.key === "/" && document.activeElement?.tagName !== "TEXTAREA") {
+
+      // "/" shortcut only when focus is not in a text field
+      if (e.key === "/" && !isInInput) {
         e.preventDefault();
         inputRef.current?.focus();
       }
     };
+
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [prompt, forcedMode, framerFields, settings.enableKeyboardShortcuts]);
+  }, [settings.enableKeyboardShortcuts, submit]);
 
   const activeRun = useMemo(() => runs.find((r) => r.id === active) ?? runs[0], [runs, active]);
 
-  async function submit() {
+  const submit = useCallback(async () => {
     const p = prompt.trim();
     if (!p) return;
     const id = uid();
@@ -154,7 +178,7 @@ export default function MissionControl() {
         ),
       );
     }
-  }
+  }, [prompt, forcedMode, framerFields]);
 
   const isBlogOrFramer =
     forcedMode === "blog" || forcedMode === "framer" || /\bblog|framer field|cms/i.test(prompt);
