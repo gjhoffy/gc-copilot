@@ -72,10 +72,9 @@ export default function MissionControl() {
   const [showSettings, setShowSettings] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Apply settings on mount
   useEffect(() => {
     applySettings(settings);
-  }, []);
+  }, [settings]);
 
   useEffect(() => {
     localStorage.setItem("gigabrain.framerFields", framerFields);
@@ -467,7 +466,7 @@ export default function MissionControl() {
         </div>
       </footer>
 
-      <SettingsDialog open={showSettings} onOpenChange={setShowSettings} />
+      <SettingsDialog open={showSettings} onOpenChange={setShowSettings} onSettingsChange={setSettings} />
     </div>
   );
 }
