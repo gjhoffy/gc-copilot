@@ -4,7 +4,7 @@
 import { z } from "zod";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
-import { composePrompt, getCompositionForMode, type PromptComposition } from "./prompts";
+import { composePrompt, getCompositionForMode } from "./prompts";
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const MODEL_FALLBACKS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"];
@@ -50,14 +50,21 @@ const RequestBodySchema = z.object({
 type RequestBody = z.infer<typeof RequestBodySchema>;
 
 // ============ SECURITY: RATE LIMITING ============
-const redis = process.env.UPSTASH_REDIS_REST_URL 
-  ? Redis.fromEnv() 
-  : null;
+const hasRedisEnv = Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
 
-const ratelimit = redis ? new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(10, "1 h"),
-}) : null;
+let ratelimit: Ratelimit | null = null;
+
+if (hasRedisEnv) {
+  try {
+    const redis = Redis.fromEnv();
+    ratelimit = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(10, "1 h"),
+    });
+  } catch (error) {
+    console.warn("[API Warning] Rate limiter disabled due to Redis configuration", error);
+  }
+}
 
 // ============ MODULAR PROMPT SYSTEM ============
 type BrainMode = "market" | "blog" | "page" | "audit" | "framer" | "chat";
@@ -117,7 +124,7 @@ async function tavilySearch(query: string, apiKey: string) {
   }
 }
 
-export default async function handler(req: Request): Promise<Response> {
+async function handleRequest(req: Request): Promise<Response> {
   const origin = req.headers.get("Origin");
   const cors = getCorsHeaders(origin);
   const securityHeaders = getSecurityHeaders();
@@ -151,8 +158,10 @@ export default async function handler(req: Request): Promise<Response> {
     }
     const body = bodyResult.data;
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) return new Response(JSON.stringify({ error: "Server config error" }), { status: 500, headers });
+    const apiKey = process.env.GEMINI_API_KEY?.trim();
+    if (!apiKey) {
+      return new Response(JSON.stringify({ error: "Server config error: missing GEMINI_API_KEY" }), { status: 500, headers });
+    }
 
     const mode = detectMode(body.prompt, body.forcedMode);
     const fullPrompt = buildPrompt(mode, body.prompt, body.framerFields);
@@ -255,3 +264,7 @@ export default async function handler(req: Request): Promise<Response> {
     return new Response(JSON.stringify({ error: "Internal Server Error" }), { status: 500, headers });
   }
 }
+
+export default {
+  fetch: handleRequest,
+};

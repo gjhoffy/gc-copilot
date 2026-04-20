@@ -37,8 +37,12 @@ const DEFAULT_SETTINGS: AppSettings = {
 
 export function loadSettings(): AppSettings {
   if (typeof window === "undefined") return DEFAULT_SETTINGS;
-  const saved = localStorage.getItem("gigabrain.settings");
-  return saved ? { ...DEFAULT_SETTINGS, ...JSON.parse(saved) } : DEFAULT_SETTINGS;
+  try {
+    const saved = localStorage.getItem("gigabrain.settings");
+    return saved ? { ...DEFAULT_SETTINGS, ...JSON.parse(saved) } : DEFAULT_SETTINGS;
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
 }
 
 export function saveSettings(settings: AppSettings) {
@@ -50,29 +54,22 @@ export function saveSettings(settings: AppSettings) {
 export function applySettings(settings: AppSettings) {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
+  const prefersDark = typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const isDark = settings.theme === "dark" || (settings.theme === "auto" && prefersDark);
 
-  // Theme
-  if (settings.theme === "dark" || (settings.theme === "auto" && matchMedia("(prefers-color-scheme: dark)").matches)) {
-    root.classList.add("dark");
-  } else {
-    root.classList.remove("dark");
-  }
+  root.classList.toggle("dark", isDark);
+  root.classList.toggle("light", !isDark);
 
-  // Font size
-  root.style.setProperty("--font-size-scale", 
-    settings.fontSize === "sm" ? "0.9" : settings.fontSize === "lg" ? "1.1" : "1");
+  root.style.setProperty("--font-size-scale", settings.fontSize === "sm" ? "0.9" : settings.fontSize === "lg" ? "1.1" : "1");
 
-  // Density
-  root.style.setProperty("--spacing-scale",
-    settings.density === "compact" ? "0.8" : settings.density === "spacious" ? "1.2" : "1");
+  root.style.setProperty("--spacing-scale", settings.density === "compact" ? "0.8" : settings.density === "spacious" ? "1.2" : "1");
 
-  // Primary color
   const colorMap: Record<string, string> = {
-    blue: "hsl(217, 91%, 60%)",
-    amber: "hsl(45, 93%, 47%)",
-    red: "hsl(0, 84%, 60%)",
-    green: "hsl(142, 71%, 45%)",
-    purple: "hsl(280, 85%, 55%)",
+    blue: "oklch(0.62 0.2 259)",
+    amber: "oklch(0.78 0.16 78)",
+    red: "oklch(0.63 0.23 25)",
+    green: "oklch(0.7 0.19 148)",
+    purple: "oklch(0.62 0.24 308)",
   };
   root.style.setProperty("--primary", colorMap[settings.primaryColor]);
 }
@@ -80,9 +77,10 @@ export function applySettings(settings: AppSettings) {
 interface SettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSettingsChange?: (settings: AppSettings) => void;
 }
 
-export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
+export function SettingsDialog({ open, onOpenChange, onSettingsChange }: SettingsDialogProps) {
   const [settings, setSettings] = useState<AppSettings>(loadSettings());
   const [selectedMode, setSelectedMode] = useState<string>("chat");
   const [activeModules, setActiveModules] = useState<Record<string, string[]>>({});
@@ -90,6 +88,12 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   useEffect(() => {
     applySettings(settings);
   }, [settings]);
+
+  useEffect(() => {
+    if (open) {
+      setSettings(loadSettings());
+    }
+  }, [open]);
 
   // Initialize active modules from default compositions
   useEffect(() => {
@@ -104,11 +108,13 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     const newSettings = { ...settings, [key]: value };
     setSettings(newSettings);
     saveSettings(newSettings);
+    onSettingsChange?.(newSettings);
   };
 
   const resetSettings = () => {
     setSettings(DEFAULT_SETTINGS);
     saveSettings(DEFAULT_SETTINGS);
+    onSettingsChange?.(DEFAULT_SETTINGS);
   };
 
   return (
