@@ -40,6 +40,8 @@
 
 :root {
   --radius: 0px;
+  --font-size-scale: 1;
+  --spacing-scale: 1;
   --background: oklch(0.16 0 0);
   --foreground: oklch(0.95 0 0);
   --card: oklch(0.21 0 0);
@@ -66,7 +68,29 @@
   --foreground: oklch(0.95 0 0);
 }
 
+.light {
+  --background: oklch(0.985 0 0);
+  --foreground: oklch(0.22 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.22 0 0);
+  --secondary: oklch(0.94 0 0);
+  --secondary-foreground: oklch(0.22 0 0);
+  --muted: oklch(0.96 0 0);
+  --muted-foreground: oklch(0.5 0 0);
+  --accent: var(--primary);
+  --accent-foreground: oklch(0.985 0 0);
+  --border: oklch(0.88 0 0);
+  --input: oklch(0.96 0 0);
+  --ring: var(--primary);
+}
+
 @layer base {
+  html {
+    font-size: calc(16px * var(--font-size-scale));
+  }
+
   @font-face {
     font-family: "Archivo Black";
     font-style: normal;
@@ -107,6 +131,7 @@
     color: var(--color-foreground);
     font-family: var(--font-body);
     -webkit-font-smoothing: antialiased;
+    transition: background-color 160ms ease, color 160ms ease;
   }
 
   h1,
@@ -129,17 +154,17 @@
 @layer utilities {
   .grid-bg {
     background-image:
-      linear-gradient(to right, oklch(0.22 0 0) 1px, transparent 1px),
-      linear-gradient(to bottom, oklch(0.22 0 0) 1px, transparent 1px);
-    background-size: 48px 48px;
+      linear-gradient(to right, color-mix(in oklch, var(--foreground) 14%, transparent) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in oklch, var(--foreground) 14%, transparent) 1px, transparent 1px);
+    background-size: calc(48px * var(--spacing-scale)) calc(48px * var(--spacing-scale));
   }
   .hazard-stripes {
     background-image: repeating-linear-gradient(
       45deg,
       var(--primary) 0,
       var(--primary) 12px,
-      oklch(0.16 0 0) 12px,
-      oklch(0.16 0 0) 24px
+      var(--background) 12px,
+      var(--background) 24px
     );
   }
   .brutal-shadow {

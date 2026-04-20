@@ -77,10 +77,9 @@ export default function MissionControl() {
   const [showSettings, setShowSettings] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Apply settings on mount
   useEffect(() => {
     applySettings(settings);
-  }, []);
+  }, [settings]);
 
   useEffect(() => {
     localStorage.setItem("gigabrain.framerFields", framerFields);
@@ -133,7 +132,7 @@ export default function MissionControl() {
             ? {
                 ...r,
                 text: result.text || "_Brain returned no content. Re-run._",
-                sources: result.sources,
+                sources: result.sources ?? [],
                 mode: result.mode as BrainMode,
                 status: "done",
                 ms: Date.now() - startedAt,
@@ -467,7 +466,7 @@ export default function MissionControl() {
         </div>
       </footer>
 
-      <SettingsDialog open={showSettings} onOpenChange={setShowSettings} />
+      <SettingsDialog open={showSettings} onOpenChange={setShowSettings} onSettingsChange={setSettings} />
     </div>
   );
 }
