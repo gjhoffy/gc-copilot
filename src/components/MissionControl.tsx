@@ -466,7 +466,11 @@ export default function MissionControl() {
         </div>
       </footer>
 
-      <SettingsDialog open={showSettings} onOpenChange={setShowSettings} onSettingsChange={setSettings} />
+      <SettingsDialog
+        open={showSettings}
+        onOpenChange={setShowSettings}
+        onSettingsChange={setSettings}
+      />
     </div>
   );
 }

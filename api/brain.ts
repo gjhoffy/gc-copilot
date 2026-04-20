@@ -117,7 +117,9 @@ async function tavilySearch(query: string, apiKey: string) {
       }),
     });
     if (!res.ok) return [];
-    const json = (await res.json()) as { results?: { title?: string; url?: string; content?: string }[] };
+    const json = (await res.json()) as {
+      results?: { title?: string; url?: string; content?: string }[];
+    };
     return (json.results || [])
       .map((r) => ({
         title: r.title || "Source",
@@ -179,7 +181,7 @@ export default async function handler(req: Request): Promise<Response> {
     const mode = detectMode(body.prompt, body.forcedMode);
     const fullPrompt = buildPrompt(mode, body.prompt, body.framerFields);
 
-    let searchResults: any[] = [];
+    let searchResults: { title: string; uri: string; content: string }[] = [];
     if (mode !== "framer" && process.env.TAVILY_API_KEY) {
       searchResults = await tavilySearch(
         `${body.prompt} Bucks County PA 2026`,
@@ -274,7 +276,7 @@ export default async function handler(req: Request): Promise<Response> {
             ...cors, // Only add CORS here, not the duplicate Content-Type
           },
         });
-      } catch (error) {
+      } catch (error: unknown) {
         lastErr = "Connection failed";
       }
     }
@@ -283,7 +285,7 @@ export default async function handler(req: Request): Promise<Response> {
       status: 502,
       headers,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[API Error]", err);
     return new Response(JSON.stringify({ error: "Internal Server Error" }), {
       status: 500,

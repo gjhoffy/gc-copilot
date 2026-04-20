@@ -131,7 +131,9 @@
     color: var(--color-foreground);
     font-family: var(--font-body);
     -webkit-font-smoothing: antialiased;
-    transition: background-color 160ms ease, color 160ms ease;
+    transition:
+      background-color 160ms ease,
+      color 160ms ease;
   }
 
   h1,
@@ -154,8 +156,16 @@
 @layer utilities {
   .grid-bg {
     background-image:
-      linear-gradient(to right, color-mix(in oklch, var(--foreground) 14%, transparent) 1px, transparent 1px),
-      linear-gradient(to bottom, color-mix(in oklch, var(--foreground) 14%, transparent) 1px, transparent 1px);
+      linear-gradient(
+        to right,
+        color-mix(in oklch, var(--foreground) 14%, transparent) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        to bottom,
+        color-mix(in oklch, var(--foreground) 14%, transparent) 1px,
+        transparent 1px
+      );
     background-size: calc(48px * var(--spacing-scale)) calc(48px * var(--spacing-scale));
   }
   .hazard-stripes {
