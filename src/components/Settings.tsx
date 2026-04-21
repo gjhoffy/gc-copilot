@@ -26,6 +26,7 @@ export type AppSettings = {
   enableKeyboardShortcuts: boolean;
   preserveHistory: boolean;
   maxHistoryItems: number;
+  showBackendError: boolean;
 };
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -39,6 +40,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   enableKeyboardShortcuts: true,
   preserveHistory: true,
   maxHistoryItems: 50,
+  showBackendError: false,
 };
 
 export function loadSettings(): AppSettings {
