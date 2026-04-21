@@ -30,6 +30,19 @@ export type BrainResult = {
   done?: boolean;
 };
 
+export class BrainError extends Error {
+  status: number;
+  body: string;
+  endpoint: string;
+  constructor(message: string, opts: { status: number; body: string; endpoint: string }) {
+    super(message);
+    this.name = "BrainError";
+    this.status = opts.status;
+    this.body = opts.body;
+    this.endpoint = opts.endpoint;
+  }
+}
+
 export async function runBrain(input: {
   prompt: string;
   forcedMode?: string;
@@ -104,15 +117,27 @@ This would normally contain AI-generated content based on your prompt about Buck
   }
 
   // Production - real API call
-  const res = await fetch(getBrainEndpoint(), {
+  const endpoint = getBrainEndpoint();
+  const res = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
 
   if (!res.ok) {
-    const json = await res.json().catch(() => ({}));
-    throw new Error((json as { error?: string })?.error || `Brain request failed (${res.status})`);
+    const raw = await res.text().catch(() => "");
+    let parsedMessage = "";
+    try {
+      const json = JSON.parse(raw) as { error?: string };
+      parsedMessage = json?.error ?? "";
+    } catch {
+      // raw will be used as-is below
+    }
+    throw new BrainError(parsedMessage || `Brain request failed (${res.status})`, {
+      status: res.status,
+      body: raw,
+      endpoint,
+    });
   }
 
   // Handle streaming response

@@ -26,6 +26,7 @@ export type AppSettings = {
   enableKeyboardShortcuts: boolean;
   preserveHistory: boolean;
   maxHistoryItems: number;
+  showBackendError: boolean;
 };
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -39,6 +40,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   enableKeyboardShortcuts: true,
   preserveHistory: true,
   maxHistoryItems: 50,
+  showBackendError: false,
 };
 
 export function loadSettings(): AppSettings {
@@ -323,6 +325,20 @@ export function SettingsDialog({ open, onOpenChange, onSettingsChange }: Setting
               <Switch
                 checked={settings.preserveHistory}
                 onCheckedChange={(checked) => handleSettingChange("preserveHistory", checked)}
+              />
+            </div>
+
+            {/* Show Backend Error */}
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="font-display uppercase tracking-widest">Show Backend Error</Label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Reveal raw /api/brain status, message, and response body
+                </p>
+              </div>
+              <Switch
+                checked={settings.showBackendError}
+                onCheckedChange={(checked) => handleSettingChange("showBackendError", checked)}
               />
             </div>
 
