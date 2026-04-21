@@ -100,33 +100,6 @@ export default function MissionControl() {
     };
   }, [framerFields]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (!settings.enableKeyboardShortcuts) return;
-
-      const target = document.activeElement as HTMLElement;
-      const isInInput = target?.tagName === "TEXTAREA" || target?.tagName === "INPUT";
-
-      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-        if (!isInInput || target?.getAttribute("data-cmd-enter") === "true") {
-          e.preventDefault();
-          void submit();
-        }
-      }
-
-      // "/" shortcut only when focus is not in a text field
-      if (e.key === "/" && !isInInput) {
-        e.preventDefault();
-        inputRef.current?.focus();
-      }
-    };
-
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [settings.enableKeyboardShortcuts, submit]);
-
-  const activeRun = useMemo(() => runs.find((r) => r.id === active) ?? runs[0], [runs, active]);
-
   const submit = useCallback(async () => {
     const p = prompt.trim();
     if (!p) return;
@@ -179,6 +152,32 @@ export default function MissionControl() {
       );
     }
   }, [prompt, forcedMode, framerFields]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!settings.enableKeyboardShortcuts) return;
+
+      const target = document.activeElement as HTMLElement;
+      const isInInput = target?.tagName === "TEXTAREA" || target?.tagName === "INPUT";
+
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        if (!isInInput || target?.getAttribute("data-cmd-enter") === "true") {
+          e.preventDefault();
+          void submit();
+        }
+      }
+
+      if (e.key === "/" && !isInInput) {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+    };
+
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [settings.enableKeyboardShortcuts, submit]);
+
+  const activeRun = useMemo(() => runs.find((r) => r.id === active) ?? runs[0], [runs, active]);
 
   const isBlogOrFramer =
     forcedMode === "blog" || forcedMode === "framer" || /\bblog|framer field|cms/i.test(prompt);
