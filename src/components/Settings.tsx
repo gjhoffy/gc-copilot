@@ -70,15 +70,11 @@ export function applySettings(settings: AppSettings) {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
 
-  // Theme
-  if (
-    settings.theme === "dark" ||
-    (settings.theme === "auto" && matchMedia("(prefers-color-scheme: dark)").matches)
-  ) {
-    root.classList.add("dark");
-  } else {
-    root.classList.remove("dark");
-  }
+  const prefersDark = matchMedia("(prefers-color-scheme: dark)").matches;
+  const useDark = settings.theme === "dark" || (settings.theme === "auto" && prefersDark);
+
+  root.classList.toggle("dark", useDark);
+  root.classList.toggle("light", !useDark);
 
   // Font size
   root.style.setProperty(
@@ -94,21 +90,23 @@ export function applySettings(settings: AppSettings) {
 
   // Primary color
   const colorMap: Record<string, string> = {
-    blue: "hsl(217, 91%, 60%)",
-    amber: "hsl(45, 93%, 47%)",
-    red: "hsl(0, 84%, 60%)",
-    green: "hsl(142, 71%, 45%)",
-    purple: "hsl(280, 85%, 55%)",
+    blue: "oklch(0.66 0.19 252)",
+    amber: "oklch(0.78 0.16 79)",
+    red: "oklch(0.64 0.22 25)",
+    green: "oklch(0.72 0.18 150)",
+    purple: "oklch(0.68 0.22 315)",
   };
   root.style.setProperty("--primary", colorMap[settings.primaryColor]);
+  root.style.setProperty("--accent", colorMap[settings.primaryColor]);
 }
 
 interface SettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSettingsChange: (settings: AppSettings) => void;
 }
 
-export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
+export function SettingsDialog({ open, onOpenChange, onSettingsChange }: SettingsDialogProps) {
   const [settings, setSettings] = useState<AppSettings>(loadSettings());
   const [selectedMode, setSelectedMode] = useState<string>("chat");
   const [activeModules, setActiveModules] = useState<Record<string, string[]>>({});
@@ -116,6 +114,12 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   useEffect(() => {
     applySettings(settings);
   }, [settings]);
+
+  useEffect(() => {
+    if (open) {
+      setSettings(loadSettings());
+    }
+  }, [open]);
 
   // Initialize active modules from default compositions
   useEffect(() => {
@@ -130,11 +134,13 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     const newSettings = { ...settings, [key]: value };
     setSettings(newSettings);
     saveSettings(newSettings);
+    onSettingsChange(newSettings);
   };
 
   const resetSettings = () => {
     setSettings(DEFAULT_SETTINGS);
     saveSettings(DEFAULT_SETTINGS);
+    onSettingsChange(DEFAULT_SETTINGS);
   };
 
   return (
