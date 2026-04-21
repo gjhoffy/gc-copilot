@@ -71,7 +71,17 @@ export default function MissionControl() {
   const [forcedMode, setForcedMode] = useState<"auto" | BrainMode>("auto");
   const [framerFields, setFramerFields] = useState<string>(() => loadFramerFields());
   const [showFieldEditor, setShowFieldEditor] = useState(false);
-  const [runs, setRuns] = useState<Run[]>([]);
+  const [runs, setRuns] = useState<Run[]>(() => {
+    const initialSettings = loadSettings();
+    if (typeof window === "undefined" || !initialSettings.preserveHistory) return [];
+
+    try {
+      const saved = localStorage.getItem("gigabrain.history");
+      return saved ? (JSON.parse(saved) as Run[]) : [];
+    } catch {
+      return [];
+    }
+  });
   const [active, setActive] = useState<string | null>(null);
   const [settings, setSettings] = useState<AppSettings>(loadSettings());
   const [showSettings, setShowSettings] = useState(false);
@@ -81,6 +91,21 @@ export default function MissionControl() {
   useEffect(() => {
     applySettings(settings);
   }, [settings]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    if (!settings.preserveHistory) {
+      localStorage.removeItem("gigabrain.history");
+      return;
+    }
+
+    const completedRuns = runs
+      .filter((run) => run.status !== "thinking")
+      .slice(0, settings.maxHistoryItems);
+
+    localStorage.setItem("gigabrain.history", JSON.stringify(completedRuns));
+  }, [runs, settings.preserveHistory, settings.maxHistoryItems]);
 
   // Debounce framer fields localStorage writes (500ms)
   useEffect(() => {
@@ -99,33 +124,6 @@ export default function MissionControl() {
       }
     };
   }, [framerFields]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (!settings.enableKeyboardShortcuts) return;
-
-      const target = document.activeElement as HTMLElement;
-      const isInInput = target?.tagName === "TEXTAREA" || target?.tagName === "INPUT";
-
-      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-        if (!isInInput || target?.getAttribute("data-cmd-enter") === "true") {
-          e.preventDefault();
-          void submit();
-        }
-      }
-
-      // "/" shortcut only when focus is not in a text field
-      if (e.key === "/" && !isInInput) {
-        e.preventDefault();
-        inputRef.current?.focus();
-      }
-    };
-
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [settings.enableKeyboardShortcuts, submit]);
-
-  const activeRun = useMemo(() => runs.find((r) => r.id === active) ?? runs[0], [runs, active]);
 
   const submit = useCallback(async () => {
     const p = prompt.trim();
@@ -149,6 +147,24 @@ export default function MissionControl() {
         prompt: p,
         forcedMode: forcedMode === "auto" ? undefined : forcedMode,
         framerFields,
+        onChunk: settings.autoStream
+          ? (chunk) => {
+              setRuns((prev) =>
+                prev.map((r) =>
+                  r.id === id
+                    ? {
+                        ...r,
+                        text: chunk.text || r.text,
+                        sources: chunk.sources ?? r.sources,
+                        mode: (chunk.mode as BrainMode | undefined) ?? r.mode,
+                        status: chunk.done ? "done" : "thinking",
+                        ms: chunk.done ? Date.now() - startedAt : r.ms,
+                      }
+                    : r,
+                ),
+              );
+            }
+          : undefined,
       });
       setRuns((prev) =>
         prev.map((r) =>
@@ -179,6 +195,32 @@ export default function MissionControl() {
       );
     }
   }, [prompt, forcedMode, framerFields]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!settings.enableKeyboardShortcuts) return;
+
+      const target = document.activeElement as HTMLElement;
+      const isInInput = target?.tagName === "TEXTAREA" || target?.tagName === "INPUT";
+
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        if (!isInInput || target?.getAttribute("data-cmd-enter") === "true") {
+          e.preventDefault();
+          void submit();
+        }
+      }
+
+      if (e.key === "/" && !isInInput) {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+    };
+
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [settings.enableKeyboardShortcuts, submit]);
+
+  const activeRun = useMemo(() => runs.find((r) => r.id === active) ?? runs[0], [runs, active]);
 
   const isBlogOrFramer =
     forcedMode === "blog" || forcedMode === "framer" || /\bblog|framer field|cms/i.test(prompt);
