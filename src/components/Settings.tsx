@@ -10,6 +10,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getBrainEndpoint } from "@/lib/brain";
 
 export type AppSettings = {
   // Appearance
@@ -140,6 +141,21 @@ export function SettingsDialog({ open, onOpenChange, onSettingsChange }: Setting
             Customize the appearance and functionality of Giga Brain
           </DialogDescription>
         </DialogHeader>
+
+        <div className="border-2 border-border bg-card/60 p-3">
+          <Label className="font-display uppercase tracking-widest text-[10px]">
+            Brain Endpoint
+          </Label>
+          <p
+            className="mt-2 break-all font-mono text-[11px] leading-snug text-primary"
+            data-testid="brain-endpoint"
+          >
+            {getBrainEndpoint()}
+          </p>
+          <p className="mt-1 font-mono text-[10px] tracking-widest text-muted-foreground">
+            Override with VITE_BRAIN_API_URL at build time.
+          </p>
+        </div>
 
         <Tabs defaultValue="appearance" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
