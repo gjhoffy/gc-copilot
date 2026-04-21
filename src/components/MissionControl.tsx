@@ -128,27 +128,28 @@ export default function MissionControl() {
     };
   }, [framerFields]);
 
-  const submit = useCallback(async () => {
-    const p = prompt.trim();
+  const submit = useCallback(async (override?: { prompt: string; mode: "auto" | BrainMode }) => {
+    const p = (override?.prompt ?? prompt).trim();
     if (!p) return;
+    const modeToUse = override?.mode ?? forcedMode;
     const id = uid();
     const startedAt = Date.now();
     const newRun: Run = {
       id,
       prompt: p,
-      mode: forcedMode === "auto" ? null : forcedMode,
+      mode: modeToUse === "auto" ? null : modeToUse,
       text: "",
       sources: [],
       status: "thinking",
     };
     setRuns((prev) => [newRun, ...prev]);
     setActive(id);
-    setPrompt("");
+    if (!override) setPrompt("");
 
     try {
       const result = await runBrain({
         prompt: p,
-        forcedMode: forcedMode === "auto" ? undefined : forcedMode,
+        forcedMode: modeToUse === "auto" ? undefined : modeToUse,
         framerFields,
         onChunk: settings.autoStream
           ? (chunk) => {
@@ -408,6 +409,19 @@ export default function MissionControl() {
               ) : activeRun.status === "error" ? (
                 <div className="space-y-3 font-mono text-sm">
                   <div className="text-destructive">✕ {activeRun.error}</div>
+                  <div>
+                    <button
+                      onClick={() =>
+                        void submit({
+                          prompt: activeRun.prompt,
+                          mode: activeRun.mode ?? "auto",
+                        })
+                      }
+                      className="brutal-shadow-light bg-primary px-4 py-2 font-display tracking-wider text-primary-foreground transition-transform hover:translate-x-[-2px] hover:translate-y-[-2px]"
+                    >
+                      ↻ RETRY BRAIN REQUEST
+                    </button>
+                  </div>
                   {settings.showBackendError && (activeRun.errorStatus || activeRun.errorBody) ? (
                     <div className="space-y-2 border-2 border-destructive/40 bg-background p-3">
                       <p className="text-[10px] tracking-widest text-destructive">
