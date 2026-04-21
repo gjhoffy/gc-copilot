@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { runBrain, getModeLabel, type BrainMode } from "@/lib/brain";
+import { runBrain, getModeLabel, BrainError, type BrainMode } from "@/lib/brain";
 import {
   SettingsDialog,
   loadSettings,
@@ -18,6 +18,9 @@ type Run = {
   sources: Source[];
   status: "thinking" | "done" | "error";
   error?: string;
+  errorStatus?: number;
+  errorBody?: string;
+  errorEndpoint?: string;
   ms?: number;
 };
 
@@ -188,6 +191,9 @@ export default function MissionControl() {
                 ...r,
                 status: "error",
                 error: err instanceof Error ? err.message : "Unknown error",
+                errorStatus: err instanceof BrainError ? err.status : undefined,
+                errorBody: err instanceof BrainError ? err.body : undefined,
+                errorEndpoint: err instanceof BrainError ? err.endpoint : undefined,
                 ms: Date.now() - startedAt,
               }
             : r,
@@ -400,7 +406,36 @@ export default function MissionControl() {
               ) : activeRun.status === "thinking" ? (
                 <ThinkingState prompt={activeRun.prompt} />
               ) : activeRun.status === "error" ? (
-                <div className="font-mono text-sm text-destructive">✕ {activeRun.error}</div>
+                <div className="space-y-3 font-mono text-sm">
+                  <div className="text-destructive">✕ {activeRun.error}</div>
+                  {settings.showBackendError && (activeRun.errorStatus || activeRun.errorBody) ? (
+                    <div className="space-y-2 border-2 border-destructive/40 bg-background p-3">
+                      <p className="text-[10px] tracking-widest text-destructive">
+                        BACKEND ERROR DETAIL
+                      </p>
+                      {activeRun.errorEndpoint ? (
+                        <p className="break-all text-[11px] text-muted-foreground">
+                          POST {activeRun.errorEndpoint}
+                        </p>
+                      ) : null}
+                      {activeRun.errorStatus ? (
+                        <p className="text-[11px] text-foreground">
+                          HTTP {activeRun.errorStatus}
+                        </p>
+                      ) : null}
+                      {activeRun.errorBody ? (
+                        <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words border border-border bg-card p-2 text-[11px] leading-snug text-foreground">
+                          {activeRun.errorBody}
+                        </pre>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {!settings.showBackendError ? (
+                    <p className="text-[10px] tracking-widest text-muted-foreground">
+                      Enable “Show Backend Error” in Settings to inspect the raw response.
+                    </p>
+                  ) : null}
+                </div>
               ) : (
                 <article className="prose prose-invert max-w-none prose-headings:font-display prose-headings:uppercase prose-headings:tracking-tight prose-h1:text-3xl prose-h2:mt-8 prose-h2:border-b-2 prose-h2:border-border prose-h2:pb-2 prose-h2:text-2xl prose-h3:text-xl prose-pre:rounded-none prose-pre:border-2 prose-pre:border-border prose-pre:bg-background prose-code:text-primary prose-code:before:content-none prose-code:after:content-none prose-strong:text-primary prose-a:text-primary prose-a:underline-offset-4 prose-li:my-1 prose-table:border-2 prose-table:border-border prose-th:border prose-th:border-border prose-th:bg-background prose-th:p-2 prose-th:font-mono prose-th:text-xs prose-th:uppercase prose-th:tracking-widest prose-td:border prose-td:border-border prose-td:p-2 prose-td:text-sm">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{activeRun.text}</ReactMarkdown>
