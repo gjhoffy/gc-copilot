@@ -4,7 +4,7 @@
 import { z } from "zod";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
-import { composePrompt, getCompositionForMode, type PromptComposition } from "./prompts";
+import { composePrompt, getCompositionForMode } from "./prompts.js";
 
 // ============ ENVIRONMENT VALIDATION ============
 function validateEnvironment(): { valid: boolean; errors: string[] } {
