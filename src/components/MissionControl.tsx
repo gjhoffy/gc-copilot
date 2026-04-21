@@ -409,6 +409,19 @@ export default function MissionControl() {
               ) : activeRun.status === "error" ? (
                 <div className="space-y-3 font-mono text-sm">
                   <div className="text-destructive">✕ {activeRun.error}</div>
+                  <div>
+                    <button
+                      onClick={() =>
+                        void submit({
+                          prompt: activeRun.prompt,
+                          mode: activeRun.mode ?? "auto",
+                        })
+                      }
+                      className="brutal-shadow-light bg-primary px-4 py-2 font-display tracking-wider text-primary-foreground transition-transform hover:translate-x-[-2px] hover:translate-y-[-2px]"
+                    >
+                      ↻ RETRY BRAIN REQUEST
+                    </button>
+                  </div>
                   {settings.showBackendError && (activeRun.errorStatus || activeRun.errorBody) ? (
                     <div className="space-y-2 border-2 border-destructive/40 bg-background p-3">
                       <p className="text-[10px] tracking-widest text-destructive">
