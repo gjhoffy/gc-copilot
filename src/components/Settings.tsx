@@ -10,7 +10,6 @@ import {
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getAvailableModules, getCompositionForMode, type PromptModule } from "../../lib/prompts";
 
 export type AppSettings = {
   // Appearance
@@ -108,8 +107,6 @@ interface SettingsDialogProps {
 
 export function SettingsDialog({ open, onOpenChange, onSettingsChange }: SettingsDialogProps) {
   const [settings, setSettings] = useState<AppSettings>(loadSettings());
-  const [selectedMode, setSelectedMode] = useState<string>("chat");
-  const [activeModules, setActiveModules] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     applySettings(settings);
@@ -120,15 +117,6 @@ export function SettingsDialog({ open, onOpenChange, onSettingsChange }: Setting
       setSettings(loadSettings());
     }
   }, [open]);
-
-  // Initialize active modules from default compositions
-  useEffect(() => {
-    const initialModules: Record<string, string[]> = {};
-    ["market", "blog", "page", "audit", "framer", "chat"].forEach((mode) => {
-      initialModules[mode] = getCompositionForMode(mode).modules;
-    });
-    setActiveModules(initialModules);
-  }, []);
 
   const handleSettingChange = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
     const newSettings = { ...settings, [key]: value };
@@ -154,10 +142,9 @@ export function SettingsDialog({ open, onOpenChange, onSettingsChange }: Setting
         </DialogHeader>
 
         <Tabs defaultValue="appearance" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="appearance">Appearance</TabsTrigger>
             <TabsTrigger value="behavior">Behavior</TabsTrigger>
-            <TabsTrigger value="prompts">Prompts</TabsTrigger>
           </TabsList>
 
           <TabsContent value="appearance" className="space-y-6">
@@ -202,11 +189,11 @@ export function SettingsDialog({ open, onOpenChange, onSettingsChange }: Setting
                     style={{
                       backgroundColor: ["blue", "amber", "red", "green", "purple"].includes(color)
                         ? {
-                            blue: "hsl(217, 91%, 60%)",
-                            amber: "hsl(45, 93%, 47%)",
-                            red: "hsl(0, 84%, 60%)",
-                            green: "hsl(142, 71%, 45%)",
-                            purple: "hsl(280, 85%, 55%)",
+                            blue: "oklch(0.66 0.19 252)",
+                            amber: "oklch(0.78 0.16 79)",
+                            red: "oklch(0.64 0.22 25)",
+                            green: "oklch(0.72 0.18 150)",
+                            purple: "oklch(0.68 0.22 315)",
                           }[color]
                         : "transparent",
                     }}
@@ -347,94 +334,6 @@ export function SettingsDialog({ open, onOpenChange, onSettingsChange }: Setting
             )}
           </TabsContent>
 
-          <TabsContent value="prompts" className="space-y-6">
-            <div className="space-y-4">
-              <div>
-                <Label className="font-display uppercase tracking-widest">
-                  Modular Prompt System
-                </Label>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Customize which prompt modules are active for different modes
-                </p>
-              </div>
-
-              {/* Mode selector */}
-              <div className="space-y-3">
-                <Label className="font-display uppercase tracking-widest">Mode</Label>
-                <select
-                  value={selectedMode}
-                  onChange={(e) => setSelectedMode(e.target.value)}
-                  className="w-full rounded border-2 border-border bg-background px-3 py-2 font-mono text-sm"
-                >
-                  <option value="market">Market Recon</option>
-                  <option value="blog">Blog Content</option>
-                  <option value="page">Landing Page</option>
-                  <option value="audit">Site Audit</option>
-                  <option value="framer">Framer CMS</option>
-                  <option value="chat">Strategy Chat</option>
-                </select>
-              </div>
-
-              {/* Module list */}
-              <div className="space-y-3">
-                <Label className="font-display uppercase tracking-widest">Active Modules</Label>
-                <div className="max-h-64 overflow-y-auto space-y-2">
-                  {getAvailableModules().map((module) => {
-                    const isActive = activeModules[selectedMode]?.includes(module.id) ?? false;
-                    const isRequired = module.required ?? false;
-
-                    return (
-                      <div
-                        key={module.id}
-                        className="flex items-start gap-3 p-3 rounded border-2 border-border"
-                      >
-                        <Switch
-                          checked={isActive}
-                          disabled={isRequired}
-                          onCheckedChange={(checked) => {
-                            const currentModules = activeModules[selectedMode] || [];
-                            const newModules = checked
-                              ? [...currentModules, module.id]
-                              : currentModules.filter((id) => id !== module.id);
-
-                            setActiveModules((prev) => ({
-                              ...prev,
-                              [selectedMode]: newModules,
-                            }));
-                          }}
-                          className="mt-0.5"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <Label className="font-medium text-sm cursor-pointer">
-                              {module.name}
-                              {isRequired && <span className="text-destructive ml-1">*</span>}
-                            </Label>
-                            {module.tags && (
-                              <div className="flex gap-1">
-                                {module.tags.map((tag) => (
-                                  <span
-                                    key={tag}
-                                    className="px-1.5 py-0.5 text-[10px] bg-primary/10 text-primary rounded font-mono uppercase"
-                                  >
-                                    {tag}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-1">{module.description}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                <p className="text-[10px] text-muted-foreground">
-                  * Required modules cannot be disabled
-                </p>
-              </div>
-            </div>
-          </TabsContent>
         </Tabs>
 
         <div className="mt-6 flex items-center justify-between border-t-2 border-border pt-6">
