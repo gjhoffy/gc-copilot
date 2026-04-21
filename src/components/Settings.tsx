@@ -328,6 +328,20 @@ export function SettingsDialog({ open, onOpenChange, onSettingsChange }: Setting
               />
             </div>
 
+            {/* Show Backend Error */}
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="font-display uppercase tracking-widest">Show Backend Error</Label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Reveal raw /api/brain status, message, and response body
+                </p>
+              </div>
+              <Switch
+                checked={settings.showBackendError}
+                onCheckedChange={(checked) => handleSettingChange("showBackendError", checked)}
+              />
+            </div>
+
             {/* Max History Items */}
             {settings.preserveHistory && (
               <div className="space-y-3">
