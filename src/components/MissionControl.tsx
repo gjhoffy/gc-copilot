@@ -128,27 +128,28 @@ export default function MissionControl() {
     };
   }, [framerFields]);
 
-  const submit = useCallback(async () => {
-    const p = prompt.trim();
+  const submit = useCallback(async (override?: { prompt: string; mode: "auto" | BrainMode }) => {
+    const p = (override?.prompt ?? prompt).trim();
     if (!p) return;
+    const modeToUse = override?.mode ?? forcedMode;
     const id = uid();
     const startedAt = Date.now();
     const newRun: Run = {
       id,
       prompt: p,
-      mode: forcedMode === "auto" ? null : forcedMode,
+      mode: modeToUse === "auto" ? null : modeToUse,
       text: "",
       sources: [],
       status: "thinking",
     };
     setRuns((prev) => [newRun, ...prev]);
     setActive(id);
-    setPrompt("");
+    if (!override) setPrompt("");
 
     try {
       const result = await runBrain({
         prompt: p,
-        forcedMode: forcedMode === "auto" ? undefined : forcedMode,
+        forcedMode: modeToUse === "auto" ? undefined : modeToUse,
         framerFields,
         onChunk: settings.autoStream
           ? (chunk) => {
