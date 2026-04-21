@@ -15,6 +15,13 @@ export function getModeLabel(m: BrainMode) {
   return MODE_LABELS[m];
 }
 
+export function getBrainEndpoint(): string {
+  const override = (import.meta.env.VITE_BRAIN_API_URL as string | undefined)?.trim();
+  if (override) return override;
+  if (typeof window !== "undefined") return `${window.location.origin}/api/brain`;
+  return "/api/brain";
+}
+
 export type BrainResult = {
   text: string;
   sources?: { title: string; uri: string }[];
@@ -97,7 +104,7 @@ This would normally contain AI-generated content based on your prompt about Buck
   }
 
   // Production - real API call
-  const res = await fetch("/api/brain", {
+  const res = await fetch(getBrainEndpoint(), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
