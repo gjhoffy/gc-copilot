@@ -137,7 +137,8 @@ function buildPrompt(mode: BrainMode, userPrompt: string, framerFields?: string)
 
 async function tavilySearch(query: string, apiKey: string) {
   try {
-    const res = await fetch(TAVILY_BASE, {
+    console.log("[brain] Tavily: starting search", { query });
+    const fetchPromise = fetch(TAVILY_BASE, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -147,23 +148,35 @@ async function tavilySearch(query: string, apiKey: string) {
         max_results: 6,
       }),
     });
+    const res = (await Promise.race([
+      fetchPromise,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Tavily search timed out after 5s")), 5000),
+      ),
+    ])) as Response;
     if (!res.ok) return [];
     const json = (await res.json()) as {
       results?: { title?: string; url?: string; content?: string }[];
     };
-    return (json.results || [])
+    const mapped = (json.results || [])
       .map((r) => ({
         title: r.title || "Source",
         uri: r.url || "",
         content: r.content || "",
       }))
       .filter((r) => r.uri);
-  } catch {
+    console.log("[brain] Tavily: completed", { count: mapped.length });
+    return mapped;
+  } catch (err) {
+    console.warn("[brain] Tavily: failed or timed out", {
+      error: err instanceof Error ? err.message : String(err),
+    });
     return [];
   }
 }
 
 export default async function handler(req: Request): Promise<Response> {
+  console.log("[brain] handler: start", { method: req.method, url: req.url });
   const origin = req.headers.get("Origin");
   const cors = getCorsHeaders(origin);
   const securityHeaders = getSecurityHeaders();
@@ -189,6 +202,7 @@ export default async function handler(req: Request): Promise<Response> {
     }
 
     const rawBody = await req.json();
+    console.log("[brain] body parsed");
     const bodyResult = RequestBodySchema.safeParse(rawBody);
 
     if (!bodyResult.success) {
@@ -210,6 +224,7 @@ export default async function handler(req: Request): Promise<Response> {
       });
 
     const mode = detectMode(body.prompt, body.forcedMode);
+    console.log("[brain] mode detected", { mode });
     const fullPrompt = buildPrompt(mode, body.prompt, body.framerFields);
 
     let searchResults: { title: string; uri: string; content: string }[] = [];
@@ -218,6 +233,8 @@ export default async function handler(req: Request): Promise<Response> {
         `${body.prompt} Bucks County PA 2026`,
         process.env.TAVILY_API_KEY,
       );
+    } else {
+      console.log("[brain] Tavily: skipped", { mode, hasKey: !!process.env.TAVILY_API_KEY });
     }
 
     const searchContext =
@@ -235,6 +252,7 @@ export default async function handler(req: Request): Promise<Response> {
     let lastErr = "";
     for (const model of MODEL_FALLBACKS) {
       try {
+        console.log("[brain] Gemini: calling", { model });
         const url = `${GEMINI_BASE}/${model}:streamGenerateContent?alt=sse`;
         const response = await fetch(url, {
           method: "POST",
@@ -243,9 +261,11 @@ export default async function handler(req: Request): Promise<Response> {
         });
 
         if (!response.ok) {
+          console.warn("[brain] Gemini: non-OK response", { model, status: response.status });
           lastErr = `[${model} ${response.status}]`;
           continue;
         }
+        console.log("[brain] Gemini: streaming started", { model });
 
         const stream = new ReadableStream({
           async start(controller) {
