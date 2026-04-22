@@ -174,53 +174,57 @@ async function tavilySearch(query: string, apiKey: string) {
   }
 }
 
-export default async function handler(req: Request): Promise<Response> {
+function applyHeaders(res: VercelResponse, headers: Record<string, string>) {
+  for (const [k, v] of Object.entries(headers)) {
+    if (v) res.setHeader(k, v);
+  }
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   console.log("[brain] handler: start", { method: req.method, url: req.url });
-  const origin = req.headers.get("Origin");
+  const origin = (req.headers.origin as string | undefined) ?? null;
   const cors = getCorsHeaders(origin);
   const securityHeaders = getSecurityHeaders();
-  const headers = {
-    ...cors,
-    ...securityHeaders,
-    "Content-Type": "application/json",
-  };
+  applyHeaders(res, { ...cors, ...securityHeaders });
 
-  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers });
-  if (req.method !== "POST")
-    return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405, headers });
+  if (req.method === "OPTIONS") {
+    res.status(204).end();
+    return;
+  }
+  if (req.method !== "POST") {
+    res.status(405).json({ error: "Method not allowed" });
+    return;
+  }
 
   try {
     if (ratelimit) {
-      const ip = req.headers.get("x-forwarded-for") || "unknown";
+      const ip = (req.headers["x-forwarded-for"] as string | undefined) || "unknown";
       const { success } = await ratelimit.limit(ip);
-      if (!success)
-        return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
-          status: 429,
-          headers,
-        });
+      if (!success) {
+        res.status(429).json({ error: "Rate limit exceeded" });
+        return;
+      }
     }
 
-    const rawBody = await req.json();
+    // Vercel Node parses JSON body automatically when Content-Type is application/json
+    const rawBody = req.body ?? {};
     console.log("[brain] body parsed");
     const bodyResult = RequestBodySchema.safeParse(rawBody);
 
     if (!bodyResult.success) {
-      return new Response(
-        JSON.stringify({
-          error: "Invalid request format",
-          details: bodyResult.error.issues.map((e) => `${e.path.join(".")}: ${e.message}`),
-        }),
-        { status: 400, headers },
-      );
+      res.status(400).json({
+        error: "Invalid request format",
+        details: bodyResult.error.issues.map((e) => `${e.path.join(".")}: ${e.message}`),
+      });
+      return;
     }
     const body = bodyResult.data;
 
     const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey)
-      return new Response(JSON.stringify({ error: "Server config error" }), {
-        status: 500,
-        headers,
-      });
+    if (!apiKey) {
+      res.status(500).json({ error: "Server config error: GEMINI_API_KEY missing" });
+      return;
+    }
 
     const mode = detectMode(body.prompt, body.forcedMode);
     console.log("[brain] mode detected", { mode });
@@ -248,7 +252,6 @@ export default async function handler(req: Request): Promise<Response> {
       generationConfig: { temperature: 0.55, maxOutputTokens: 6144 },
     };
 
-    let lastErr = "";
     for (const model of MODEL_FALLBACKS) {
       try {
         console.log("[brain] Gemini: calling", { model });
@@ -261,104 +264,81 @@ export default async function handler(req: Request): Promise<Response> {
 
         if (!response.ok) {
           console.warn("[brain] Gemini: non-OK response", { model, status: response.status });
-          lastErr = `[${model} ${response.status}]`;
           continue;
         }
         console.log("[brain] Gemini: streaming started", { model });
 
-        const stream = new ReadableStream({
-          async start(controller) {
-            const reader = response.body?.getReader();
-            if (!reader) return controller.close();
+        // Switch response into streaming NDJSON mode
+        res.setHeader("Content-Type", "text/plain; charset=utf-8");
+        res.setHeader("Cache-Control", "no-cache");
+        res.status(200);
 
-            let buffer = "";
-            const encoder = new TextEncoder();
-            const decoder = new TextDecoder();
+        const reader = response.body?.getReader();
+        if (!reader) {
+          res.end();
+          return;
+        }
 
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            const data = line.slice(6);
+            if (data.trim() === "[DONE]") continue;
             try {
-              while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split("\n");
-                buffer = lines.pop() || "";
-
-                for (const line of lines) {
-                  if (line.startsWith("data: ")) {
-                    const data = line.slice(6);
-                    if (data.trim() === "[DONE]") continue;
-                    try {
-                      const parsed = JSON.parse(data);
-                      const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text || "";
-                      if (text) {
-                        controller.enqueue(
-                          encoder.encode(JSON.stringify({ text, done: false, mode, model }) + "\n"),
-                        );
-                      }
-                    } catch (error) {
-                      // Ignore parsing errors for malformed chunks
-                      console.warn("Failed to parse Gemini streaming chunk:", error);
-                    }
-                  }
-                }
+              const parsed = JSON.parse(data);
+              const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text || "";
+              if (text) {
+                res.write(JSON.stringify({ text, done: false, mode, model }) + "\n");
               }
-              const finalChunk =
-                JSON.stringify({
-                  text: "",
-                  sources: searchResults.map((r) => ({ title: r.title, uri: r.uri })),
-                  done: true,
-                  mode,
-                  model,
-                }) + "\n";
-              controller.enqueue(encoder.encode(finalChunk));
-              controller.close();
-            } catch (e) {
-              controller.error(e);
+            } catch (error) {
+              console.warn("Failed to parse Gemini streaming chunk:", error);
             }
-          },
-        });
+          }
+        }
 
-        return new Response(stream, {
-          headers: {
-            "Content-Type": "text/plain; charset=utf-8",
-            "Cache-Control": "no-cache",
-            Connection: "keep-alive",
-            ...cors, // Only add CORS here, not the duplicate Content-Type
-          },
-        });
+        res.write(
+          JSON.stringify({
+            text: "",
+            sources: searchResults.map((r) => ({ title: r.title, uri: r.uri })),
+            done: true,
+            mode,
+            model,
+          }) + "\n",
+        );
+        res.end();
+        return;
       } catch (error: unknown) {
-        lastErr = "Connection failed";
+        console.warn("[brain] Gemini: connection failed", {
+          model,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 
-    return new Response(
-      JSON.stringify({
-        error: "Service temporarily unavailable. Please try again in a moment.",
-        traceId: Math.random().toString(36).substring(2, 11), // For support
-      }),
-      {
-        status: 502,
-        headers,
-      },
-    );
-  } catch (err: unknown) {
-    // Log full error server-side for debugging, but don't expose to client
-    const errorMsg = err instanceof Error ? err.message : String(err);
-    console.error("[API Error]", {
-      timestamp: new Date().toISOString(),
-      error: errorMsg,
-      // Don't log stack trace with potentially sensitive info
+    res.status(502).json({
+      error: "Service temporarily unavailable. Please try again in a moment.",
+      traceId: Math.random().toString(36).substring(2, 11),
     });
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    console.error("[API Error]", { timestamp: new Date().toISOString(), error: errorMsg });
 
-    return new Response(
-      JSON.stringify({
+    if (!res.headersSent) {
+      res.status(500).json({
         error: "Internal server error. Please try again later.",
         traceId: Math.random().toString(36).substring(2, 11),
-      }),
-      {
-        status: 500,
-        headers,
-      },
-    );
+      });
+    } else {
+      res.end();
+    }
   }
 }
