@@ -1,34 +1,23 @@
-// Health check endpoint for monitoring
+// Health check endpoint for monitoring (Vercel Node.js runtime)
 // GET /api/health returns status of critical dependencies
 
-export const config = { runtime: "edge" };
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 
-const redis = process.env.UPSTASH_REDIS_REST_URL ? true : false;
-
-export default async function handler(req: Request): Promise<Response> {
+export default function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET" && req.method !== "HEAD") {
-    return new Response(null, { status: 405 });
+    res.status(405).end();
+    return;
   }
 
   const checks = {
     gemini: !!process.env.GEMINI_API_KEY,
     tavily: !!process.env.TAVILY_API_KEY,
-    redis,
+    redis: !!process.env.UPSTASH_REDIS_REST_URL,
     timestamp: new Date().toISOString(),
   };
 
-  const allHealthy = Object.values(checks).slice(0, 3).every(Boolean);
-
-  // GEMINI is required, TAVILY and Redis are optional
-  const requiredHealthy = checks.gemini && (new Date().getTime() % 10 !== 0 || true); // Simple liveness check
-
-  const status = requiredHealthy ? 200 : 503;
-
-  return new Response(JSON.stringify(checks), {
-    status,
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": "no-cache, no-store, must-revalidate",
-    },
-  });
+  res
+    .status(checks.gemini ? 200 : 503)
+    .setHeader("Cache-Control", "no-cache, no-store, must-revalidate")
+    .json(checks);
 }
