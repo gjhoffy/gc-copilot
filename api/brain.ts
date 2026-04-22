@@ -6,6 +6,8 @@ import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { composePrompt, getCompositionForMode } from "./prompts.js";
 
+export const config = { runtime: "edge" };
+
 // ============ ENVIRONMENT VALIDATION ============
 function validateEnvironment(): { valid: boolean; errors: string[] } {
   const errors: string[] = [];

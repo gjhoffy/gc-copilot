@@ -1,6 +1,8 @@
 // Health check endpoint for monitoring
 // GET /api/health returns status of critical dependencies
 
+export const config = { runtime: "edge" };
+
 const redis = process.env.UPSTASH_REDIS_REST_URL ? true : false;
 
 export default async function handler(req: Request): Promise<Response> {
