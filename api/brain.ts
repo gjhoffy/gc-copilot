@@ -1,12 +1,11 @@
 // Vercel Node serverless function: POST /api/brain
 // Holds Gemini + Tavily logic. Reads GEMINI_API_KEY and TAVILY_API_KEY from env.
 
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { z } from "zod";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { composePrompt, getCompositionForMode } from "./prompts.js";
-
-export const config = { runtime: "edge" };
 
 // ============ ENVIRONMENT VALIDATION ============
 function validateEnvironment(): { valid: boolean; errors: string[] } {
