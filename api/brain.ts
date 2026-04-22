@@ -4,11 +4,6 @@ import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { composePrompt, getCompositionForMode } from "./prompts";
 
-// 1. FORCE EDGE RUNTIME (This is the #1 fix for 500 errors with streaming)
-export const config = {
-  runtime: 'edge',
-};
-
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const MODEL_FALLBACKS = ["gemini-2.0-flash", "gemini-1.5-flash"];
 const TAVILY_BASE = "https://api.tavily.com/search";
@@ -121,13 +116,17 @@ export default async function handler(req: Request): Promise<Response> {
                 } catch (e) {}
               }
             }
+        for (const line of lines) {
+  const cleanLine = line.replace(/^data:\s*/, '').trim(); // Remove "data: " if present
+  if (!cleanLine) continue;
+  try {
+    const json = JSON.parse(cleanLine);
+    const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (text) controller.enqueue(encoder.encode(JSON.stringify({ text, mode }) + "\n"));
+  } catch (e) {}
+}
           }
-          controller.enqueue(encoder.encode(JSON.stringify({ done: true, sources: searchResults }) + "\n"));
-          controller.close();
-        } catch (e) { controller.error(e); }
-      }
-    });
-
+          controller.enqueue(encoder.encode(JSON.stringify({ done: true, sources: searchResults }) + "\n"))
     return new Response(stream, {
       headers: { ...cors, "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-cache" }
     });
