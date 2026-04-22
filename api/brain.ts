@@ -96,41 +96,58 @@ export default async function handler(req: Request): Promise<Response> {
     const stream = new ReadableStream({
       async start(controller) {
         const reader = response.body?.getReader();
-        if (!reader) return controller.close();
+        if (!reader) {
+          controller.close();
+          return;
+        }
+
         const decoder = new TextDecoder();
         const encoder = new TextEncoder();
         let buffer = "";
+
         try {
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
+
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split("\n");
             buffer = lines.pop() || "";
+
             for (const line of lines) {
-              if (line.startsWith("data: ")) {
-                try {
-                  const json = JSON.parse(line.slice(6));
-                  const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
-                  if (text) controller.enqueue(encoder.encode(JSON.stringify({ text, mode }) + "\n"));
-                } catch (e) {}
+              const cleanLine = line.replace(/^data:\s*/, "").trim();
+              if (!cleanLine) continue;
+
+              try {
+                const json = JSON.parse(cleanLine);
+                const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (text) {
+                  controller.enqueue(encoder.encode(JSON.stringify({ text, mode }) + "\n"));
+                }
+              } catch (e) {
+                // ignore malformed SSE lines
               }
             }
-        for (const line of lines) {
-  const cleanLine = line.replace(/^data:\s*/, '').trim(); // Remove "data: " if present
-  if (!cleanLine) continue;
-  try {
-    const json = JSON.parse(cleanLine);
-    const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (text) controller.enqueue(encoder.encode(JSON.stringify({ text, mode }) + "\n"));
-  } catch (e) {}
-}
           }
-          controller.enqueue(encoder.encode(JSON.stringify({ done: true, sources: searchResults }) + "\n"))
-    return new Response(stream, {
-      headers: { ...cors, "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-cache" }
+
+          controller.enqueue(
+            encoder.encode(JSON.stringify({ done: true, sources: searchResults }) + "\n")
+          );
+        } catch (error) {
+          controller.error(error);
+        } finally {
+          controller.close();
+        }
+      },
     });
 
+    return new Response(stream, {
+      headers: {
+        ...cors,
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-cache",
+      },
+    });
   } catch (err: any) {
     return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: cors });
   }
