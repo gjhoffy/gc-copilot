@@ -1,6 +1,7 @@
 {
-  "buildCommand": "npm run build",
+  "buildCommand": "bun run build",
   "outputDirectory": "dist",
+  "framework": "vite",
   "rewrites": [
     {
       "source": "/api/:path*",
@@ -10,11 +11,5 @@
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
-  ],
-  "functions": {
-    "api/*.ts": {
-      "runtime": "nodejs20.x",
-      "maxDuration": 25
-    }
-  }
+  ]
 }
