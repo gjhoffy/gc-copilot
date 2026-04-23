@@ -1,4 +1,6 @@
 // Vercel Edge Function: /api/brain
+export const config = { runtime: "edge" };
+
 import { z } from "zod";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
