@@ -30,7 +30,6 @@ const MODE_OPTIONS: { value: "auto" | BrainMode; label: string }[] = [
   { value: "market", label: "MARKET" },
   { value: "page", label: "PAGE" },
   { value: "audit", label: "AUDIT" },
-  { value: "framer", label: "FRAMER CMS" },
   { value: "chat", label: "CHAT" },
 ];
 
@@ -54,9 +53,9 @@ const QUICK_PROMPTS: { label: string; prompt: string; hint: string }[] = [
       "Write the full landing page for exterior painting in New Hope, PA (18938). AIO-extractive, FAQ, JSON-LD, neighborhood proof.",
   },
   {
-    label: "AUDIT // FRAMER URL",
+    label: "AUDIT // SITE URL",
     hint: "Paste your URL",
-    prompt: "Audit this Framer site for 2026 AIO + Trust Velocity: https://",
+    prompt: "Audit this site for 2026 AIO + Trust Velocity: https://",
   },
 ];
 
@@ -64,16 +63,9 @@ function uid() {
   return Math.random().toString(36).slice(2, 9);
 }
 
-function loadFramerFields() {
-  if (typeof window === "undefined") return "";
-  return localStorage.getItem("gigabrain.framerFields") || "";
-}
-
 export default function MissionControl() {
   const [prompt, setPrompt] = useState("");
   const [forcedMode, setForcedMode] = useState<"auto" | BrainMode>("auto");
-  const [framerFields, setFramerFields] = useState<string>(() => loadFramerFields());
-  const [showFieldEditor, setShowFieldEditor] = useState(false);
   const [runs, setRuns] = useState<Run[]>(() => {
     const initialSettings = loadSettings();
     if (typeof window === "undefined" || !initialSettings.preserveHistory) return [];
@@ -89,7 +81,6 @@ export default function MissionControl() {
   const [settings, setSettings] = useState<AppSettings>(loadSettings());
   const [showSettings, setShowSettings] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const framerFieldsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     applySettings(settings);
@@ -109,24 +100,6 @@ export default function MissionControl() {
 
     localStorage.setItem("gigabrain.history", JSON.stringify(completedRuns));
   }, [runs, settings.preserveHistory, settings.maxHistoryItems]);
-
-  // Debounce framer fields localStorage writes (500ms)
-  useEffect(() => {
-    if (framerFieldsTimeoutRef.current) {
-      clearTimeout(framerFieldsTimeoutRef.current);
-    }
-
-    framerFieldsTimeoutRef.current = setTimeout(() => {
-      localStorage.setItem("gigabrain.framerFields", framerFields);
-      framerFieldsTimeoutRef.current = null;
-    }, 500);
-
-    return () => {
-      if (framerFieldsTimeoutRef.current) {
-        clearTimeout(framerFieldsTimeoutRef.current);
-      }
-    };
-  }, [framerFields]);
 
   const submit = useCallback(async (override?: { prompt: string; mode: "auto" | BrainMode }) => {
     const p = (override?.prompt ?? prompt).trim();
@@ -150,7 +123,6 @@ export default function MissionControl() {
       const result = await runBrain({
         prompt: p,
         forcedMode: modeToUse === "auto" ? undefined : modeToUse,
-        framerFields,
         onChunk: settings.autoStream
           ? (chunk) => {
               setRuns((prev) =>
@@ -201,7 +173,7 @@ export default function MissionControl() {
         ),
       );
     }
-  }, [prompt, forcedMode, framerFields]);
+  }, [prompt, forcedMode, settings.autoStream]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -229,9 +201,6 @@ export default function MissionControl() {
 
   const activeRun = useMemo(() => runs.find((r) => r.id === active) ?? runs[0], [runs, active]);
 
-  const isBlogOrFramer =
-    forcedMode === "blog" || forcedMode === "framer" || /\bblog|framer field|cms/i.test(prompt);
-
   return (
     <div className="min-h-screen bg-background text-foreground grid-bg">
       <header className="sticky top-0 z-30 border-b-2 border-border bg-background/85 backdrop-blur">
@@ -249,7 +218,7 @@ export default function MissionControl() {
           </div>
           <div className="hidden items-center gap-3 font-mono text-[10px] md:flex">
             <span className="h-2 w-2 animate-pulse bg-primary" />
-            <span className="text-muted-foreground">GEMINI 2.5 / GROUNDED</span>
+            <span className="text-muted-foreground">GEMINI 2.0 / GROUNDED</span>
             <span className="mx-2 h-1 w-1 bg-border" />
             <button
               onClick={() => setShowSettings(true)}
@@ -270,30 +239,17 @@ export default function MissionControl() {
                 <span className="h-1.5 w-1.5 bg-primary" />
                 MISSION CONTROL
               </div>
-              <div className="flex items-center gap-2">
-                <select
-                  value={forcedMode}
-                  onChange={(e) => setForcedMode(e.target.value as "auto" | BrainMode)}
-                  className="border border-border bg-background px-2 py-1 font-mono text-[10px] tracking-widest"
-                >
-                  {MODE_OPTIONS.map((m) => (
-                    <option key={m.value} value={m.value}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  onClick={() => setShowFieldEditor((s) => !s)}
-                  className={`border px-2 py-1 font-mono text-[10px] tracking-widest ${
-                    framerFields
-                      ? "border-primary text-primary"
-                      : "border-border text-muted-foreground"
-                  }`}
-                  title="Saved Framer CMS field names (used for blog + framer modes)"
-                >
-                  FRAMER FIELDS {framerFields ? "●" : "○"}
-                </button>
-              </div>
+              <select
+                value={forcedMode}
+                onChange={(e) => setForcedMode(e.target.value as "auto" | BrainMode)}
+                className="border border-border bg-background px-2 py-1 font-mono text-[10px] tracking-widest"
+              >
+                {MODE_OPTIONS.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="p-4">
@@ -301,7 +257,7 @@ export default function MissionControl() {
                 ref={inputRef}
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Tell the brain what to build. e.g. 'Blog: limewashing brick for Doylestown homeowners' or 'Audit https://mysite.framer.website'"
+                placeholder="Tell the brain what to build. e.g. 'Blog: limewashing brick for Doylestown homeowners' or 'Audit https://mysite.com'"
                 rows={4}
                 className="w-full resize-y border-2 border-border bg-background p-3 font-mono text-sm outline-none focus:border-primary"
               />
@@ -333,46 +289,8 @@ export default function MissionControl() {
               <p className="mt-2 font-mono text-[10px] tracking-widest text-muted-foreground">
                 {settings.enableKeyboardShortcuts && "⌘/CTRL + ENTER · "}MODE:{" "}
                 {forcedMode === "auto" ? "AUTO-DETECT" : forcedMode.toUpperCase()}
-                {isBlogOrFramer && !framerFields ? (
-                  <>
-                    {" · "}
-                    <button
-                      onClick={() => setShowFieldEditor(true)}
-                      className="text-primary underline underline-offset-2"
-                    >
-                      paste your Framer field names
-                    </button>
-                  </>
-                ) : null}
               </p>
             </div>
-
-            {showFieldEditor && (
-              <div className="border-t-2 border-border bg-background p-4">
-                <div className="mb-2 flex items-center justify-between">
-                  <p className="font-display text-sm">FRAMER CMS FIELD PROFILE</p>
-                  <button
-                    onClick={() => setShowFieldEditor(false)}
-                    className="font-mono text-[10px] tracking-widest text-muted-foreground hover:text-primary"
-                  >
-                    CLOSE ✕
-                  </button>
-                </div>
-                <p className="mb-2 font-mono text-[10px] tracking-widest text-muted-foreground">
-                  ONE FIELD PER LINE · OPTIONALLY: NAME (MAX_CHARS)
-                </p>
-                <textarea
-                  value={framerFields}
-                  onChange={(e) => setFramerFields(e.target.value)}
-                  rows={8}
-                  placeholder={`title (60)\nslug\nexcerpt (160)\nhero_alt\nbody_md\nfaq\nschema_jsonld\ntags\npublished_at\nreading_time_min`}
-                  className="w-full resize-y border-2 border-border bg-card p-3 font-mono text-xs outline-none focus:border-primary"
-                />
-                <p className="mt-2 font-mono text-[10px] tracking-widest text-muted-foreground">
-                  SAVED LOCALLY · USED IN BLOG + FRAMER MODES
-                </p>
-              </div>
-            )}
           </section>
 
           <section className="min-h-[400px] border-2 border-border bg-card">
@@ -446,7 +364,7 @@ export default function MissionControl() {
                   ) : null}
                   {!settings.showBackendError ? (
                     <p className="text-[10px] tracking-widest text-muted-foreground">
-                      Enable “Show Backend Error” in Settings to inspect the raw response.
+                      Enable "Show Backend Error" in Settings to inspect the raw response.
                     </p>
                   ) : null}
                 </div>
@@ -605,8 +523,7 @@ function EmptyState() {
       <h2 className="mb-2 font-display text-2xl md:text-3xl">BRAIN STANDING BY</h2>
       <p className="mx-auto max-w-md text-sm text-muted-foreground">
         Type a prompt or hit a quick action. The brain auto-detects intent — blog, market recon,
-        landing page, audit, or Framer CMS — and grounds every answer in live 2026 Bucks County
-        data.
+        landing page, or audit — and grounds every answer in live 2026 Bucks County data.
       </p>
     </div>
   );
