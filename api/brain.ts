@@ -7,7 +7,7 @@ import { Redis } from "@upstash/redis";
 import { composePrompt, getCompositionForMode } from "./prompts";
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
-const MODEL_FALLBACKS = ["gemini-3.0-flash", "gemini-2.5-flash-latest", "gemini-2.0-flash-002"];
+const MODEL_FALLBACKS = ["gemini-3.0-flash", "gemini-2.5-flash-latest"];
 const TAVILY_BASE = "https://api.tavily.com/search";
 
 function getCorsHeaders(origin: string | null) {
